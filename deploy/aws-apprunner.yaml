@@ -1,0 +1,29 @@
+# AWS App Runner Configuration
+# Deploy using: aws apprunner create-service --cli-input-json file://apprunner-service.json
+
+version: 1.0
+runtime: nodejs18
+build:
+  commands:
+    pre-build:
+      - npm ci
+    build:
+      - npm run build
+    post-build:
+      - echo "Build completed"
+  env:
+    - name: NEXT_PUBLIC_SUPABASE_URL
+      value: "${NEXT_PUBLIC_SUPABASE_URL}"
+    - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+      value: "${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+
+run:
+  runtime-version: 18
+  command: npm run start
+  network:
+    port: 3000
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "3000"

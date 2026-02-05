@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "Bash(export PATH=\"/usr/local/bin:$PATH\")",
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(brew install:*)",
+      "Bash(npx supabase:*)",
+      "Bash(/opt/homebrew/bin/npm --version)",
+      "Bash(/usr/local/bin/npm --version)",
+      "Bash(/usr/local/bin/npx:*)",
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(npm run build:*)",
+      "Bash(/opt/homebrew/bin/npm run build)",
+      "Bash(echo:*)",
+      "Bash(export PATH:*)",
+      "Bash(curl:*)",
+      "Bash(export PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:$PATH\")",
+      "Bash(npm audit:*)",
+      "Bash(python3:*)",
+      "Bash(npx tsc:*)",
+      "Bash(chmod:*)",
+      "Bash(aws sts get-caller-identity:*)",
+      "Bash(/opt/homebrew/bin/aws sts get-caller-identity:*)",
+      "Bash(/usr/local/bin/docker info:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(export AWS_REGION=\"us-east-1\")",
+      "Bash(export:*)",
+      "Bash(export NEXT_PUBLIC_SUPABASE_ANON_KEY:*)",
+      "Bash(/opt/homebrew/bin/aws amplify list-apps:*)",
+      "Bash(/opt/homebrew/bin/aws amplify create-app:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)"
+    ]
+  }
+}
