@@ -10,28 +10,25 @@ import {
   AlertTriangle,
   Users,
   Calendar,
-  Filter,
   Search,
   Clock,
-  FileJson,
-  FileSpreadsheet,
+  Shield,
   Zap,
-  MoreVertical,
   ChevronDown,
   RefreshCw,
+  Code,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 // Types
 type ReportType =
   | 'compliance-summary'
-  | 'risk-assessment'
-  | 'control-effectiveness'
-  | 'audit-findings'
+  | 'framework-compliance'
+  | 'cloud-security'
   | 'vendor-risk'
-  | 'evidence-collection'
-  | 'policy-compliance'
-  | 'executive-dashboard';
+  | 'audit-readiness'
+  | 'risk-report'
+  | 'application-security';
 
 type ReportFormat = 'PDF' | 'CSV' | 'XLSX';
 type ScheduleFrequency = 'weekly' | 'monthly' | 'quarterly' | 'none';
@@ -41,7 +38,7 @@ interface ReportDefinition {
   title: string;
   description: string;
   icon: React.ReactNode;
-  lastGenerated?: Date;
+  gradientClass: string;
 }
 
 interface GeneratedReport {
@@ -60,81 +57,85 @@ interface GeneratingReport {
   schedule: ScheduleFrequency;
 }
 
-// Report Definitions
+// Report Definitions - 7 Scrut-style reports
 const REPORT_DEFINITIONS: ReportDefinition[] = [
   {
     id: 'compliance-summary',
-    title: 'Compliance Summary Report',
-    description: 'Overview of compliance status across all frameworks and regulations',
-    icon: <CheckCircle className="w-6 h-6 text-sky-500" />,
+    title: 'Compliance Summary',
+    description: 'Overview of compliance status across all frameworks',
+    icon: <CheckCircle className="w-8 h-8 text-white" />,
+    gradientClass: 'from-sky-400 to-blue-600',
   },
   {
-    id: 'risk-assessment',
-    title: 'Risk Assessment Report',
-    description: 'Comprehensive risk analysis and prioritization matrix',
-    icon: <AlertTriangle className="w-6 h-6 text-sky-500" />,
+    id: 'framework-compliance',
+    title: 'Framework Compliance',
+    description: 'Detailed compliance status per framework',
+    icon: <Shield className="w-8 h-8 text-white" />,
+    gradientClass: 'from-emerald-400 to-teal-600',
   },
   {
-    id: 'control-effectiveness',
-    title: 'Control Effectiveness Report',
-    description: 'Assessment of control performance and maturity levels',
-    icon: <CheckCircle className="w-6 h-6 text-sky-500" />,
-  },
-  {
-    id: 'audit-findings',
-    title: 'Audit Findings Report',
-    description: 'Summary of audit observations and remediation status',
-    icon: <FileText className="w-6 h-6 text-sky-500" />,
+    id: 'cloud-security',
+    title: 'Cloud Security',
+    description: 'Cloud security posture and vulnerability findings',
+    icon: <Cloud className="w-8 h-8 text-white" />,
+    gradientClass: 'from-violet-400 to-purple-600',
   },
   {
     id: 'vendor-risk',
-    title: 'Vendor Risk Report',
-    description: 'Third-party and vendor risk assessment dashboard',
-    icon: <Users className="w-6 h-6 text-sky-500" />,
+    title: 'Vendor Risk Assessment',
+    description: 'Third-party vendor risk evaluation report',
+    icon: <Users className="w-8 h-8 text-white" />,
+    gradientClass: 'from-amber-400 to-orange-600',
   },
   {
-    id: 'evidence-collection',
-    title: 'Evidence Collection Report',
-    description: 'Compiled evidence and documentation status tracking',
-    icon: <FileJson className="w-6 h-6 text-sky-500" />,
+    id: 'audit-readiness',
+    title: 'Audit Readiness',
+    description: 'Audit preparation status and evidence completeness',
+    icon: <CheckCircle className="w-8 h-8 text-white" />,
+    gradientClass: 'from-rose-400 to-pink-600',
   },
   {
-    id: 'policy-compliance',
-    title: 'Policy Compliance Report',
-    description: 'Policy adherence and governance effectiveness metrics',
-    icon: <TrendingUp className="w-6 h-6 text-sky-500" />,
+    id: 'risk-report',
+    title: 'Risk Report',
+    description: 'Comprehensive risk analysis with heat map',
+    icon: <AlertTriangle className="w-8 h-8 text-white" />,
+    gradientClass: 'from-red-500 to-orange-600',
   },
   {
-    id: 'executive-dashboard',
-    title: 'Executive Dashboard Report',
-    description: 'High-level executive summary with key metrics and trends',
-    icon: <BarChart3 className="w-6 h-6 text-sky-500" />,
+    id: 'application-security',
+    title: 'Application Security Assessment',
+    description: 'AppSec scan results and remediation status',
+    icon: <Code className="w-8 h-8 text-white" />,
+    gradientClass: 'from-cyan-400 to-sky-600',
   },
 ];
+
+// Cloud icon component (not available in lucide directly, using custom SVG-like implementation)
+function Cloud({ className }: { className: string }) {
+  return (
+    <svg
+      className={className}
+      fill="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path d="M19.5 7c1.91 1.64 3.13 4.02 3.13 6.7 0 5.03-4.1 9.1-9.15 9.1H6.5C3.01 22.8 0 19.77 0 16.3c0-3.07 2.45-5.6 5.5-5.94.64-2.37 2.8-4.11 5.35-4.11 1.98 0 3.77.85 5.02 2.21.52-.37 1.15-.58 1.83-.58z" />
+    </svg>
+  );
+}
 
 // Skeleton Component
 function ReportCardSkeleton() {
   return (
-    <Card className="border-slate-200/60 shadow-sm animate-pulse">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-3 flex-1">
-            <div className="h-6 bg-slate-200 rounded-lg w-3/4" />
-            <div className="h-4 bg-slate-200 rounded-lg w-full" />
-            <div className="h-4 bg-slate-200 rounded-lg w-5/6" />
-          </div>
-          <div className="h-6 w-6 bg-slate-200 rounded-lg" />
-        </div>
-      </CardHeader>
-      <CardContent>
+    <Card className="border-slate-200/60 shadow-sm hover:shadow-lg transition-shadow overflow-hidden animate-pulse">
+      <div className="h-32 bg-slate-200" />
+      <CardContent className="pt-4">
         <div className="space-y-3">
-          <div className="h-4 bg-slate-200 rounded-lg w-1/2" />
-          <div className="flex gap-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-8 bg-slate-200 rounded-lg w-16" />
-            ))}
+          <div className="h-6 bg-slate-200 rounded-lg w-3/4" />
+          <div className="h-4 bg-slate-200 rounded-lg w-full" />
+          <div className="flex gap-2 pt-4">
+            <div className="h-9 bg-slate-200 rounded-lg flex-1" />
+            <div className="h-9 bg-slate-200 rounded-lg flex-1" />
           </div>
-          <div className="h-10 bg-slate-200 rounded-lg w-full mt-4" />
         </div>
       </CardContent>
     </Card>
@@ -168,127 +169,90 @@ function Toast({
   );
 }
 
+// Export Dropdown Component
+function ExportDropdown({
+  onExport,
+  isLoading,
+}: {
+  onExport: (format: ReportFormat) => void;
+  isLoading: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={isLoading}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 text-white rounded-lg font-medium transition-colors text-sm"
+      >
+        <Download className="w-4 h-4" />
+        Export
+        <ChevronDown className="w-4 h-4" />
+      </button>
+      {isOpen && (
+        <div className="absolute top-full right-0 mt-2 w-32 bg-white border border-slate-200/60 rounded-lg shadow-lg z-10">
+          {(['PDF', 'CSV', 'XLSX'] as ReportFormat[]).map((format) => (
+            <button
+              key={format}
+              onClick={() => {
+                onExport(format);
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm text-slate-700 first:rounded-t-lg last:rounded-b-lg transition-colors"
+            >
+              {format}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Report Card Component
 function ReportCard({
   report,
   onGenerate,
+  onSchedule,
   isLoading,
 }: {
   report: ReportDefinition;
-  onGenerate: (type: ReportType, format: ReportFormat, schedule: ScheduleFrequency) => void;
+  onGenerate: (type: ReportType, format: ReportFormat) => void;
+  onSchedule: (type: ReportType) => void;
   isLoading: boolean;
 }) {
-  const [expandedSchedule, setExpandedSchedule] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState<ReportFormat>('PDF');
-  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleFrequency>('none');
-
-  const handleGenerate = () => {
-    onGenerate(report.id, selectedFormat, selectedSchedule);
-    setSelectedFormat('PDF');
-    setSelectedSchedule('none');
+  const handleExport = (format: ReportFormat) => {
+    onGenerate(report.id, format);
   };
 
   return (
-    <Card className="border-slate-200/60 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              {report.icon}
-              <CardTitle className="text-slate-900">{report.title}</CardTitle>
-            </div>
-            <p className="text-sm text-slate-600">{report.description}</p>
-          </div>
-          <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <MoreVertical className="w-4 h-4 text-slate-400" />
-          </button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {report.lastGenerated && (
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <Clock className="w-4 h-4" />
-              <span>Last generated: {report.lastGenerated.toLocaleDateString()}</span>
-            </div>
-          )}
+    <Card className="border-slate-200/60 shadow-sm hover:shadow-lg transition-all overflow-hidden">
+      {/* Gradient Preview Area */}
+      <div className={`h-32 bg-gradient-to-br ${report.gradientClass} flex items-center justify-center`}>
+        {report.icon}
+      </div>
 
+      {/* Content Area */}
+      <CardContent className="pt-4">
+        <div className="space-y-3">
+          {/* Title and Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Export Format
-            </label>
-            <div className="flex gap-2">
-              {(['PDF', 'CSV', 'XLSX'] as ReportFormat[]).map((format) => (
-                <button
-                  key={format}
-                  onClick={() => setSelectedFormat(format)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    selectedFormat === format
-                      ? 'bg-sky-500 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {format}
-                </button>
-              ))}
-            </div>
+            <h3 className="font-bold text-slate-900 text-base">{report.title}</h3>
+            <p className="text-sm text-slate-500 mt-1">{report.description}</p>
           </div>
 
-          <div>
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-2">
+            <ExportDropdown onExport={handleExport} isLoading={isLoading} />
             <button
-              onClick={() => setExpandedSchedule(!expandedSchedule)}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200/60 hover:bg-slate-50 transition-colors"
+              onClick={() => onSchedule(report.id)}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors text-sm"
             >
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-600" />
-                <span className="text-sm font-medium text-slate-700">
-                  Schedule: {selectedSchedule === 'none' ? 'None' : selectedSchedule}
-                </span>
-              </div>
-              <ChevronDown
-                className={`w-4 h-4 text-slate-600 transition-transform ${
-                  expandedSchedule ? 'rotate-180' : ''
-                }`}
-              />
+              <Calendar className="w-4 h-4" />
+              Schedule
             </button>
-
-            {expandedSchedule && (
-              <div className="mt-2 space-y-2 p-3 bg-slate-50 rounded-lg">
-                {(['none', 'weekly', 'monthly', 'quarterly'] as ScheduleFrequency[]).map(
-                  (freq) => (
-                    <button
-                      key={freq}
-                      onClick={() => {
-                        setSelectedSchedule(freq);
-                        setExpandedSchedule(false);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded text-sm hover:bg-slate-200 transition-colors capitalize"
-                    >
-                      {freq === 'none' ? 'No Schedule' : freq}
-                    </button>
-                  )
-                )}
-              </div>
-            )}
           </div>
-
-          <button
-            onClick={handleGenerate}
-            disabled={isLoading}
-            className="w-full bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 text-white px-4 py-2.5 rounded-2xl font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            {isLoading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Zap className="w-4 h-4" />
-                Generate Report
-              </>
-            )}
-          </button>
         </div>
       </CardContent>
     </Card>
@@ -483,14 +447,71 @@ function ReportHistoryTable({ reports }: { reports: GeneratedReport[] }) {
   );
 }
 
+// Schedule Modal Component
+function ScheduleModal({
+  isOpen,
+  reportTitle,
+  onClose,
+  onSchedule,
+}: {
+  isOpen: boolean;
+  reportTitle: string;
+  onClose: () => void;
+  onSchedule: (frequency: ScheduleFrequency) => void;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <Card className="w-96 shadow-xl">
+        <CardHeader>
+          <CardTitle>Schedule Report</CardTitle>
+          <p className="text-sm text-slate-600 mt-2">{reportTitle}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            {(['weekly', 'monthly', 'quarterly'] as ScheduleFrequency[]).map((freq) => (
+              <button
+                key={freq}
+                onClick={() => {
+                  onSchedule(freq);
+                  onClose();
+                }}
+                className="w-full text-left px-4 py-3 border border-slate-200/60 hover:bg-slate-50 rounded-lg transition-colors capitalize font-medium text-slate-700"
+              >
+                {freq}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 border border-slate-200/60 hover:bg-slate-50 rounded-lg text-slate-700 font-medium transition-colors"
+          >
+            Cancel
+          </button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // Main Reports Page
 export default function ReportsPage() {
-  const [isLoading, setIsLoading] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
-  const [generatingReports, setGeneratingReports] = useState<GeneratingReport[]>([]);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [reports, setReports] = useState<GeneratedReport[]>([]);
+  const [generatingTypes, setGeneratingTypes] = useState<Set<ReportType>>(new Set());
+  const [scheduleModal, setScheduleModal] = useState<{
+    isOpen: boolean;
+    reportType: ReportType | null;
+    reportTitle: string;
+  }>({
+    isOpen: false,
+    reportType: null,
+    reportTitle: '',
+  });
+  const [scheduledReports, setScheduledReports] = useState<Set<ReportType>>(new Set());
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -510,6 +531,15 @@ export default function ReportsPage() {
       }
     }
 
+    const savedSchedules = localStorage.getItem('grc-scheduled-reports');
+    if (savedSchedules) {
+      try {
+        setScheduledReports(new Set(JSON.parse(savedSchedules)));
+      } catch (error) {
+        console.error('Failed to load scheduled reports', error);
+      }
+    }
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -520,13 +550,13 @@ export default function ReportsPage() {
     }
   }, [reports]);
 
-  const handleGenerateReport = (
-    type: ReportType,
-    format: ReportFormat,
-    schedule: ScheduleFrequency
-  ) => {
-    setIsLoading(true);
-    setGeneratingReports((prev) => [...prev, { type, format, schedule }]);
+  // Save scheduled reports to localStorage
+  useEffect(() => {
+    localStorage.setItem('grc-scheduled-reports', JSON.stringify(Array.from(scheduledReports)));
+  }, [scheduledReports]);
+
+  const handleGenerateReport = (type: ReportType, format: ReportFormat) => {
+    setGeneratingTypes((prev) => new Set(prev).add(type));
 
     // Simulate report generation
     setTimeout(() => {
@@ -541,24 +571,38 @@ export default function ReportsPage() {
       };
 
       setReports((prev) => [newReport, ...prev]);
-      setGeneratingReports((prev) => prev.filter((r) => r.type !== type));
+      setGeneratingTypes((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(type);
+        return newSet;
+      });
+
       setToastMessage(
         `${REPORT_DEFINITIONS.find((r) => r.id === type)?.title} generated successfully!`
       );
       setShowToast(true);
-      setIsLoading(false);
-
-      if (schedule !== 'none') {
-        setToastMessage(
-          `Report scheduled for ${schedule} generation!`
-        );
-        setShowToast(true);
-      }
     }, 2000);
   };
 
+  const handleScheduleReport = (type: ReportType) => {
+    const report = REPORT_DEFINITIONS.find((r) => r.id === type);
+    setScheduleModal({
+      isOpen: true,
+      reportType: type,
+      reportTitle: report?.title || '',
+    });
+  };
+
+  const handleConfirmSchedule = (frequency: ScheduleFrequency) => {
+    if (scheduleModal.reportType) {
+      setScheduledReports((prev) => new Set(prev).add(scheduleModal.reportType!));
+      setToastMessage(`Report scheduled for ${frequency} generation!`);
+      setShowToast(true);
+    }
+  };
+
   const totalReportsGenerated = reports.length;
-  const scheduledReports = generatingReports.filter((r) => r.schedule !== 'none').length;
+  const scheduledCount = scheduledReports.size;
   const thisMonthReports = reports.filter((r) => {
     const now = new Date();
     return (
@@ -574,7 +618,7 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Reports</h1>
           <p className="text-slate-600 text-sm mt-2">
-            Generate comprehensive compliance, risk, and audit reports for your organization
+            Generate compliance, risk, and security reports for your organization
           </p>
         </div>
 
@@ -582,37 +626,38 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
             icon={BarChart3}
-            label="Total Reports Generated"
+            label="Total Generated"
             value={totalReportsGenerated}
             isLoading={showSkeleton}
           />
           <StatCard
             icon={Calendar}
-            label="Scheduled Reports"
-            value={scheduledReports}
+            label="Scheduled"
+            value={scheduledCount}
             isLoading={showSkeleton}
           />
           <StatCard
             icon={TrendingUp}
-            label="Reports This Month"
+            label="This Month"
             value={thisMonthReports}
             isLoading={showSkeleton}
           />
         </div>
 
-        {/* Report Types Section */}
+        {/* Report Templates Section */}
         <div>
-          <h2 className="text-xl font-bold text-slate-900 mb-4">Available Reports</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Report Templates</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {showSkeleton ? (
-              Array.from({ length: 8 }).map((_, i) => <ReportCardSkeleton key={i} />)
+              Array.from({ length: 7 }).map((_, i) => <ReportCardSkeleton key={i} />)
             ) : (
               REPORT_DEFINITIONS.map((report) => (
                 <ReportCard
                   key={report.id}
                   report={report}
                   onGenerate={handleGenerateReport}
-                  isLoading={generatingReports.some((r) => r.type === report.id)}
+                  onSchedule={handleScheduleReport}
+                  isLoading={generatingTypes.has(report.id)}
                 />
               ))
             )}
@@ -629,7 +674,7 @@ export default function ReportsPage() {
               <Card className="border-slate-200/60 shadow-sm">
                 <CardContent className="pt-12">
                   <div className="text-center py-8">
-                    <BarChart3 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-slate-900 mb-2">No Reports Yet</h3>
                     <p className="text-slate-600 max-w-md mx-auto">
                       Generate your first report to see it appear in the history
@@ -640,6 +685,16 @@ export default function ReportsPage() {
             )}
           </div>
         )}
+
+        {/* Schedule Modal */}
+        <ScheduleModal
+          isOpen={scheduleModal.isOpen}
+          reportTitle={scheduleModal.reportTitle}
+          onClose={() =>
+            setScheduleModal({ isOpen: false, reportType: null, reportTitle: '' })
+          }
+          onSchedule={handleConfirmSchedule}
+        />
 
         {/* Toast Notification */}
         <Toast

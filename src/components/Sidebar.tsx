@@ -104,7 +104,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         { id: 'frameworks', label: 'Frameworks', href: '/compliance', icon: <BookOpen className="w-4 h-4" /> },
         { id: 'controls', label: 'Controls', href: '/controls', icon: <ClipboardList className="w-4 h-4" /> },
         { id: 'evidence', label: 'Evidence', href: '/evidence', icon: <FolderOpen className="w-4 h-4" /> },
-        { id: 'cloud', label: 'Cloud Security', href: '/cspm', icon: <Cloud className="w-4 h-4" /> },
+        { id: 'cloud-inventory', label: 'Cloud Inventory', href: '/cloud-inventory', icon: <Cloud className="w-4 h-4" /> },
+        { id: 'cloud', label: 'Cloud Security', href: '/cspm', icon: <Shield className="w-4 h-4" /> },
       ]
     },
     {
