@@ -100,6 +100,7 @@ CREATE TABLE controls (
   risk_rating VARCHAR(20) CHECK (risk_rating IN ('critical','high','medium','low')),
   evidence_type VARCHAR(50) CHECK (evidence_type IN ('automated','manual','hybrid')),
   owner_id UUID REFERENCES auth.users(id),
+  implementation_details TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(org_id, code)
