@@ -176,7 +176,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           <Link
             href="/"
             className="w-12 h-12 bg-gradient-to-br from-sky-400 to-sky-500 rounded-full flex items-center justify-center hover:shadow-lg hover:shadow-sky-500/50 transition-all duration-300"
-            title="Scrut"
+            title="Secureline GRC"
           >
             <Shield className="w-6 h-6 text-white" />
           </Link>
@@ -240,7 +240,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             <Shield className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Scrut</h1>
+            <h1 className="text-lg font-bold text-white">Secureline</h1>
             <p className="text-xs text-slate-400">GRC Platform</p>
           </div>
         </Link>
