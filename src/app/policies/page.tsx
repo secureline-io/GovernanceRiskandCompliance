@@ -3,12 +3,35 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   FileText, Plus, Download, Search, AlertTriangle, RefreshCw,
-  CheckCircle2, Clock, AlertCircle, Eye
+  CheckCircle2, Clock, AlertCircle, Eye, X, Edit, Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { exportToCSV } from '@/lib/export';
 
-const DEFAULT_ORG_ID = 'default';
+// Toast notification component
+const Toast = ({ type, message, onClose }: { type: 'success' | 'error'; message: string; onClose: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className={cn(
+      'fixed bottom-6 right-6 rounded-lg px-4 py-3 text-sm font-medium flex items-center gap-2 z-50 animate-fadeIn',
+      type === 'success'
+        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+        : 'bg-red-500 text-white shadow-lg shadow-red-500/30'
+    )}>
+      {type === 'success' ? (
+        <CheckCircle2 className="w-4 h-4" />
+      ) : (
+        <AlertCircle className="w-4 h-4" />
+      )}
+      {message}
+    </div>
+  );
+};
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; borderColor: string }> = {
   draft: { label: 'Draft', color: 'text-slate-700', bg: 'bg-slate-50', borderColor: 'border-slate-200' },
@@ -38,23 +61,36 @@ const SkeletonRow = () => (
 );
 
 export default function PoliciesPage() {
+  const { currentOrg } = useAuth();
+  const orgId = currentOrg?.org_id || 'default';
+
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+  };
+
   const [filter, setFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedPolicy, setSelectedPolicy] = useState<any | null>(null);
+  const [editingPolicy, setEditingPolicy] = useState<any | null>(null);
   const [newPolicy, setNewPolicy] = useState({ title: '', policy_type: 'security', content_markdown: '' });
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isEditSaving, setIsEditSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fetchPolicies = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/policies?org_id=${DEFAULT_ORG_ID}`);
+      const res = await fetch(`/api/policies?org_id=${orgId}`);
       const json = await res.json();
       const data = json.data || json || [];
       setPolicies(Array.isArray(data) ? data : []);
     } catch { setPolicies([]); }
     finally { setLoading(false); }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => { fetchPolicies(); }, [fetchPolicies]);
 
@@ -63,13 +99,16 @@ export default function PoliciesPage() {
     try {
       const res = await fetch('/api/policies', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ org_id: DEFAULT_ORG_ID, title: newPolicy.title, policy_type: newPolicy.policy_type, content_markdown: newPolicy.content_markdown }),
+        body: JSON.stringify({ org_id: orgId, title: newPolicy.title, policy_type: newPolicy.policy_type, content_markdown: newPolicy.content_markdown }),
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
       setShowCreateForm(false);
       setNewPolicy({ title: '', policy_type: 'security', content_markdown: '' });
       await fetchPolicies();
-    } catch (err: any) { alert('Error: ' + err.message); }
+      showNotification('Policy created successfully');
+    } catch (err: any) {
+      showNotification('Error creating policy: ' + err.message, 'error');
+    }
   };
 
   const handlePublish = async (policyId: string) => {
@@ -80,7 +119,71 @@ export default function PoliciesPage() {
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
       await fetchPolicies();
-    } catch (err: any) { alert('Error: ' + err.message); }
+      showNotification('Policy published successfully');
+    } catch (err: any) {
+      showNotification('Error publishing policy: ' + err.message, 'error');
+    }
+  };
+
+  const handleEditSave = async () => {
+    if (!editingPolicy || !editingPolicy.title) {
+      showNotification('Policy title is required', 'error');
+      return;
+    }
+
+    setIsEditSaving(true);
+    try {
+      const res = await fetch(`/api/policies/${editingPolicy.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editingPolicy.title,
+          policy_type: editingPolicy.policy_type,
+          content_markdown: editingPolicy.content_markdown,
+        }),
+      });
+
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.error || 'Failed to save policy');
+      }
+
+      const { data: updatedPolicy } = await res.json();
+      setSelectedPolicy(updatedPolicy);
+      setEditingPolicy(null);
+      await fetchPolicies();
+      showNotification('Policy saved successfully');
+    } catch (err: any) {
+      showNotification('Error saving policy: ' + err.message, 'error');
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedPolicy) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/policies/${selectedPolicy.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.error || 'Failed to delete policy');
+      }
+
+      setSelectedPolicy(null);
+      setShowDeleteConfirm(false);
+      await fetchPolicies();
+      showNotification('Policy archived successfully');
+    } catch (err: any) {
+      showNotification('Error deleting policy: ' + err.message, 'error');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleExport = () => {
@@ -436,7 +539,7 @@ export default function PoliciesPage() {
                             )}
                             {policy.status !== 'draft' && (
                               <button
-                                onClick={() => {}}
+                                onClick={() => setSelectedPolicy(policy)}
                                 className="text-xs font-medium text-slate-600 hover:text-slate-700 transition-colors"
                               >
                                 View
@@ -453,6 +556,266 @@ export default function PoliciesPage() {
           )}
         </div>
       </div>
+
+      {/* POLICY DETAIL PANEL */}
+      {selectedPolicy && !editingPolicy && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-slate-200 bg-white">
+              <h2 className="text-xl font-bold text-slate-900">Policy Details</h2>
+              <button
+                onClick={() => setSelectedPolicy(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Title */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Title</label>
+                <p className="text-sm font-medium text-slate-900 mt-1">{selectedPolicy.title}</p>
+              </div>
+
+              {/* Policy Type */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</label>
+                <p className="text-sm text-slate-700 mt-1">{typeConfig[selectedPolicy.policy_type]?.label || selectedPolicy.policy_type}</p>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</label>
+                <div className="mt-1">
+                  <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium border', statusConfig[selectedPolicy.status].bg, statusConfig[selectedPolicy.status].color, statusConfig[selectedPolicy.status].borderColor)}>
+                    {statusConfig[selectedPolicy.status].label}
+                  </span>
+                </div>
+              </div>
+
+              {/* Version */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Version</label>
+                <p className="text-sm font-mono text-slate-700 mt-1">v{selectedPolicy.version || 1}</p>
+              </div>
+
+              {/* Owner */}
+              {selectedPolicy.owner && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Owner</label>
+                  <p className="text-sm text-slate-700 mt-1">{selectedPolicy.owner}</p>
+                </div>
+              )}
+
+              {/* Approval Status */}
+              {selectedPolicy.approval_status && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Approval Status</label>
+                  <p className="text-sm text-slate-700 mt-1">{selectedPolicy.approval_status}</p>
+                </div>
+              )}
+
+              {/* Effective Date */}
+              {selectedPolicy.effective_date && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Effective Date</label>
+                  <p className="text-sm text-slate-700 mt-1">
+                    {new Date(selectedPolicy.effective_date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              )}
+
+              {/* Review Date */}
+              {selectedPolicy.review_date && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Review Date</label>
+                  <p className="text-sm text-slate-700 mt-1">
+                    {new Date(selectedPolicy.review_date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              )}
+
+              {/* Content */}
+              {selectedPolicy.content_markdown && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Content</label>
+                  <div className="mt-2 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap">{selectedPolicy.content_markdown}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="sticky bottom-0 flex justify-between gap-3 p-6 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(true);
+                }}
+                className="rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2.5 text-sm font-medium transition-all flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Archive
+              </button>
+              <div className="flex gap-3">
+                {selectedPolicy.status === 'draft' && (
+                  <button
+                    onClick={async () => {
+                      await handlePublish(selectedPolicy.id);
+                      setSelectedPolicy(null);
+                    }}
+                    className="rounded-xl bg-sky-500 hover:bg-sky-600 px-4 py-2.5 text-sm font-medium text-white transition-all active:scale-95"
+                  >
+                    Publish
+                  </button>
+                )}
+                <button
+                  onClick={() => setEditingPolicy(selectedPolicy)}
+                  className="rounded-xl border border-sky-200 bg-sky-50 text-sky-600 hover:bg-sky-100 px-4 py-2.5 text-sm font-medium transition-all flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => setSelectedPolicy(null)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POLICY EDIT MODAL */}
+      {editingPolicy && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-slate-200 bg-white">
+              <h2 className="text-xl font-bold text-slate-900">Edit Policy</h2>
+              <button
+                onClick={() => setEditingPolicy(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Title */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-2">Title</label>
+                <input
+                  type="text"
+                  value={editingPolicy.title}
+                  onChange={e => setEditingPolicy({ ...editingPolicy, title: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Policy Type */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-2">Policy Type</label>
+                <select
+                  value={editingPolicy.policy_type}
+                  onChange={e => setEditingPolicy({ ...editingPolicy, policy_type: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                >
+                  <option value="security">Security</option>
+                  <option value="acceptable_use">Acceptable Use</option>
+                  <option value="data_retention">Data Retention</option>
+                  <option value="incident_response">Incident Response</option>
+                  <option value="access_control">Access Control</option>
+                </select>
+              </div>
+
+              {/* Content */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-2">Content (Markdown)</label>
+                <textarea
+                  rows={8}
+                  value={editingPolicy.content_markdown}
+                  onChange={e => setEditingPolicy({ ...editingPolicy, content_markdown: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="sticky bottom-0 flex justify-end gap-3 p-6 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={() => setEditingPolicy(null)}
+                disabled={isEditSaving}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSave}
+                disabled={isEditSaving}
+                className="rounded-xl bg-sky-500 hover:bg-sky-600 px-4 py-2.5 text-sm font-medium text-white transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isEditSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteConfirm && selectedPolicy && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900">Archive Policy</h3>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                Are you sure you want to archive <span className="font-semibold">"{selectedPolicy.title}"</span>? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="rounded-xl bg-red-500 hover:bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {isDeleting ? 'Archiving...' : 'Archive Policy'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST NOTIFICATION */}
+      {notification && (
+        <Toast
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
+        />
+      )}
     </div>
   );
 }

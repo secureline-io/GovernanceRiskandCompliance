@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import AppShell from "@/components/AppShell";
+import { AuthProvider } from "@/lib/auth/AuthContext";
+import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -9,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Scrut Automation - GRC Platform",
-  description: "Governance, Risk & Compliance Platform",
+  title: "Secureline GRC Platform",
+  description: "Secureline - Governance, Risk & Compliance Platform",
 };
 
 export default function RootLayout({
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased bg-gray-50`}>
-        <AppShell>{children}</AppShell>
+        <AuthProvider>
+          <AuthenticatedLayout>{children}</AuthenticatedLayout>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { Key, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-
-const DEFAULT_ORG_ID = 'default';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface Control {
   id: string;
@@ -24,6 +23,8 @@ interface AccessReview {
 }
 
 export default function AccessPage() {
+  const { currentOrg } = useAuth();
+  const orgId = currentOrg?.org_id || 'default';
   const [controls, setControls] = useState<Control[]>([]);
   const [reviews, setReviews] = useState<AccessReview[]>([
     { id: '1', name: 'Privileged Access Review', completed: false, lastReviewDate: null },
@@ -42,7 +43,7 @@ export default function AccessPage() {
 
     const fetchControls = async () => {
       try {
-        const res = await fetch(`/api/controls?org_id=${DEFAULT_ORG_ID}`);
+        const res = await fetch(`/api/controls?org_id=${orgId}`);
         if (res.ok) {
           const data = await res.json();
           const filtered = data.filter((c: Control) =>

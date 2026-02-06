@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ClipboardCheck,
   Plus,
@@ -16,10 +16,13 @@ import {
   MoreVertical,
   Search,
   Download,
-  Eye
+  Eye,
+  X,
+  Loader
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 // Audit types
 type AuditStatus = 'planning' | 'in_progress' | 'fieldwork' | 'reporting' | 'completed' | 'closed';
@@ -35,6 +38,7 @@ interface AuditFinding {
 
 interface Audit {
   id: string;
+  org_id: string;
   name: string;
   audit_type: AuditType;
   status: AuditStatus;
@@ -48,114 +52,8 @@ interface Audit {
   findings: AuditFinding[];
   progress: number;
   description?: string;
+  created_at: string;
 }
-
-// Mock audit data
-const audits: Audit[] = [
-  {
-    id: '1',
-    name: 'SOC 2 Type II Annual Audit 2026',
-    audit_type: 'certification',
-    status: 'in_progress',
-    start_date: '2026-01-15',
-    end_date: '2026-03-15',
-    auditor: 'Deloitte',
-    lead_auditor_name: 'Sarah Johnson',
-    scope: ['Security', 'Availability', 'Confidentiality'],
-    frameworks: ['SOC 2'],
-    findings_count: 3,
-    findings: [
-      { id: 'f1', title: 'Access review documentation incomplete', severity: 'medium', status: 'remediation', control_ref: 'CC6.1' },
-      { id: 'f2', title: 'Vendor risk assessment overdue', severity: 'low', status: 'open', control_ref: 'CC9.2' },
-      { id: 'f3', title: 'Encryption key rotation policy', severity: 'low', status: 'verified', control_ref: 'CC6.7' }
-    ],
-    progress: 65,
-    description: 'Annual SOC 2 Type II examination covering security, availability, and confidentiality trust service criteria.'
-  },
-  {
-    id: '2',
-    name: 'ISO 27001 Surveillance Audit',
-    audit_type: 'certification',
-    status: 'planning',
-    start_date: '2026-04-01',
-    end_date: '2026-04-15',
-    auditor: 'BSI',
-    lead_auditor_name: 'Michael Chen',
-    scope: ['ISMS', 'Risk Management', 'Asset Management'],
-    frameworks: ['ISO 27001'],
-    findings_count: 0,
-    findings: [],
-    progress: 15,
-    description: 'First surveillance audit following initial ISO 27001 certification.'
-  },
-  {
-    id: '3',
-    name: 'Q4 2025 Internal Security Audit',
-    audit_type: 'internal',
-    status: 'completed',
-    start_date: '2025-10-01',
-    end_date: '2025-11-30',
-    auditor: 'Internal Audit Team',
-    lead_auditor_name: 'Emily Davis',
-    scope: ['Access Control', 'Change Management', 'Incident Response'],
-    frameworks: ['SOC 2', 'ISO 27001'],
-    findings_count: 7,
-    findings: [
-      { id: 'f4', title: 'Privileged access review gaps', severity: 'high', status: 'closed', control_ref: 'AC-002' },
-      { id: 'f5', title: 'Change management documentation', severity: 'medium', status: 'closed', control_ref: 'CM-001' },
-      { id: 'f6', title: 'Incident response training', severity: 'low', status: 'closed', control_ref: 'IR-003' },
-      { id: 'f7', title: 'Network segmentation review', severity: 'medium', status: 'closed', control_ref: 'SC-007' },
-      { id: 'f8', title: 'Backup verification testing', severity: 'high', status: 'closed', control_ref: 'CP-009' },
-      { id: 'f9', title: 'Security awareness metrics', severity: 'low', status: 'closed', control_ref: 'AT-002' },
-      { id: 'f10', title: 'Third-party access controls', severity: 'medium', status: 'closed', control_ref: 'AC-017' }
-    ],
-    progress: 100,
-    description: 'Quarterly internal security audit covering key operational controls.'
-  },
-  {
-    id: '4',
-    name: 'PCI DSS v4.0 Assessment',
-    audit_type: 'regulatory',
-    status: 'fieldwork',
-    start_date: '2026-02-01',
-    end_date: '2026-02-28',
-    auditor: 'Coalfire',
-    lead_auditor_name: 'Robert Martinez',
-    scope: ['Cardholder Data Environment', 'Network Security', 'Access Control'],
-    frameworks: ['PCI DSS'],
-    findings_count: 5,
-    findings: [
-      { id: 'f11', title: 'Multi-factor authentication gaps', severity: 'critical', status: 'open', control_ref: 'Req 8.4' },
-      { id: 'f12', title: 'Log retention configuration', severity: 'high', status: 'remediation', control_ref: 'Req 10.7' },
-      { id: 'f13', title: 'Vulnerability scan schedule', severity: 'medium', status: 'open', control_ref: 'Req 11.3' },
-      { id: 'f14', title: 'Password complexity policy', severity: 'low', status: 'verified', control_ref: 'Req 8.3' },
-      { id: 'f15', title: 'Anti-malware monitoring', severity: 'medium', status: 'remediation', control_ref: 'Req 5.3' }
-    ],
-    progress: 45,
-    description: 'Annual PCI DSS assessment for payment card processing compliance.'
-  },
-  {
-    id: '5',
-    name: 'HIPAA Security Rule Assessment',
-    audit_type: 'regulatory',
-    status: 'reporting',
-    start_date: '2026-01-05',
-    end_date: '2026-02-05',
-    auditor: 'KPMG',
-    lead_auditor_name: 'Jessica Wilson',
-    scope: ['Administrative Safeguards', 'Physical Safeguards', 'Technical Safeguards'],
-    frameworks: ['HIPAA'],
-    findings_count: 4,
-    findings: [
-      { id: 'f16', title: 'Risk analysis documentation', severity: 'high', status: 'remediation', control_ref: '164.308(a)(1)' },
-      { id: 'f17', title: 'Workforce training records', severity: 'medium', status: 'verified', control_ref: '164.308(a)(5)' },
-      { id: 'f18', title: 'Access termination procedures', severity: 'medium', status: 'verified', control_ref: '164.308(a)(3)' },
-      { id: 'f19', title: 'Encryption implementation', severity: 'low', status: 'verified', control_ref: '164.312(a)(2)' }
-    ],
-    progress: 85,
-    description: 'Comprehensive HIPAA Security Rule assessment for healthcare data protection.'
-  }
-];
 
 const statusConfig: Record<AuditStatus, { label: string; color: string; bg: string; icon: typeof Clock }> = {
   planning: { label: 'Planning', color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950', icon: Calendar },
@@ -165,6 +63,18 @@ const statusConfig: Record<AuditStatus, { label: string; color: string; bg: stri
   completed: { label: 'Completed', color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950', icon: CheckCircle2 },
   closed: { label: 'Closed', color: 'text-zinc-500', bg: 'bg-zinc-100 dark:bg-zinc-900', icon: CheckCircle2 }
 };
+
+interface CreateAuditFormData {
+  name: string;
+  audit_type: AuditType;
+  start_date: string;
+  end_date: string;
+  auditor: string;
+  lead_auditor_name: string;
+  description: string;
+  scope: string;
+  frameworks: string;
+}
 
 const typeConfig: Record<AuditType, { label: string; color: string; bg: string }> = {
   internal: { label: 'Internal', color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950' },
@@ -189,10 +99,181 @@ const findingStatusConfig: Record<string, { label: string; color: string; bg: st
 };
 
 export default function AuditsPage() {
+  const { currentOrg } = useAuth();
+  const [audits, setAudits] = useState<Audit[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAudit, setSelectedAudit] = useState<Audit | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [findings, setFindings] = useState<Record<string, AuditFinding[]>>({});
+  const [loadingFindings, setLoadingFindings] = useState<Record<string, boolean>>({});
+  const [formData, setFormData] = useState<CreateAuditFormData>({
+    name: '',
+    audit_type: 'internal',
+    start_date: '',
+    end_date: '',
+    auditor: '',
+    lead_auditor_name: '',
+    description: '',
+    scope: '',
+    frameworks: ''
+  });
+
+  const orgId = currentOrg?.org_id || 'default';
+
+  // Fetch audits from API
+  const fetchAudits = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`/api/audits?org_id=${orgId}`);
+      if (!response.ok) throw new Error('Failed to fetch audits');
+      const result = await response.json();
+      const auditData = result.data || [];
+
+      // Calculate progress for each audit
+      const auditsWithProgress = auditData.map((audit: any) => ({
+        ...audit,
+        progress: calculateProgress(audit.status),
+        findings: [] // Initialize empty findings, will load on expand
+      }));
+
+      setAudits(auditsWithProgress);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch audits');
+      console.error('Error fetching audits:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId]);
+
+  // Fetch findings for an audit
+  const fetchFindings = useCallback(async (auditId: string) => {
+    if (findings[auditId]) return; // Already loaded
+
+    try {
+      setLoadingFindings(prev => ({ ...prev, [auditId]: true }));
+      const response = await fetch(`/api/audits/${auditId}/findings?org_id=${orgId}`);
+      if (!response.ok) throw new Error('Failed to fetch findings');
+      const result = await response.json();
+      setFindings(prev => ({ ...prev, [auditId]: result.data || [] }));
+    } catch (err) {
+      console.error('Error fetching findings:', err);
+    } finally {
+      setLoadingFindings(prev => ({ ...prev, [auditId]: false }));
+    }
+  }, [orgId, findings]);
+
+  // Calculate progress based on status
+  const calculateProgress = (status: AuditStatus): number => {
+    const progressMap: Record<AuditStatus, number> = {
+      planning: 15,
+      in_progress: 50,
+      fieldwork: 65,
+      reporting: 85,
+      completed: 100,
+      closed: 100
+    };
+    return progressMap[status];
+  };
+
+  // Handle audit expansion - load findings when expanded
+  const handleAuditClick = (audit: Audit) => {
+    setSelectedAudit(selectedAudit?.id === audit.id ? null : audit);
+    if (selectedAudit?.id !== audit.id && audit.findings_count > 0) {
+      fetchFindings(audit.id);
+    }
+  };
+
+  // Create new audit
+  const handleCreateAudit = async () => {
+    try {
+      if (!formData.name || !formData.audit_type) {
+        setError('Name and audit type are required');
+        return;
+      }
+
+      const response = await fetch('/api/audits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_id: orgId,
+          name: formData.name,
+          audit_type: formData.audit_type,
+          start_date: formData.start_date || null,
+          end_date: formData.end_date || null,
+          auditor: formData.auditor || null,
+          lead_auditor_name: formData.lead_auditor_name || null,
+          description: formData.description || null,
+          scope: formData.scope ? formData.scope.split(',').map(s => s.trim()).filter(s => s) : [],
+          frameworks: formData.frameworks ? formData.frameworks.split(',').map(f => f.trim()).filter(f => f) : []
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to create audit');
+
+      // Reset form and close modal
+      setFormData({
+        name: '',
+        audit_type: 'internal',
+        start_date: '',
+        end_date: '',
+        auditor: '',
+        lead_auditor_name: '',
+        description: '',
+        scope: '',
+        frameworks: ''
+      });
+      setShowCreateModal(false);
+
+      // Refresh audits list
+      await fetchAudits();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create audit');
+      console.error('Error creating audit:', err);
+    }
+  };
+
+  // Export audits as CSV
+  const handleExportCSV = () => {
+    const headers = ['Name', 'Type', 'Status', 'Auditor', 'Lead Auditor', 'Start Date', 'End Date', 'Progress', 'Findings'];
+    const rows = filteredAudits.map(a => [
+      a.name,
+      a.audit_type,
+      a.status,
+      a.auditor,
+      a.lead_auditor_name,
+      a.start_date,
+      a.end_date,
+      `${a.progress}%`,
+      a.findings_count
+    ]);
+
+    const csv = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audits-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Handle report generation
+  const handleGenerateReport = (audit: Audit) => {
+    alert(`Report generation started for "${audit.name}". You will receive a notification when it's ready.`);
+  };
+
+  useEffect(() => {
+    fetchAudits();
+  }, [fetchAudits]);
 
   const filteredAudits = audits.filter(audit => {
     const matchesStatus = statusFilter === null || audit.status === statusFilter;
@@ -204,14 +285,176 @@ export default function AuditsPage() {
     return matchesStatus && matchesType && matchesSearch;
   });
 
-  // Calculate stats
+  // Calculate stats from actual data
   const activeAudits = audits.filter(a => ['planning', 'in_progress', 'fieldwork', 'reporting'].includes(a.status)).length;
   const completedAudits = audits.filter(a => ['completed', 'closed'].includes(a.status)).length;
-  const totalFindings = audits.reduce((sum, a) => sum + a.findings_count, 0);
-  const openFindings = audits.reduce((sum, a) => sum + a.findings.filter(f => f.status === 'open' || f.status === 'remediation').length, 0);
+  const totalFindings = audits.reduce((sum, a) => sum + (a.findings_count || 0), 0);
+
+  // For open findings, count from loaded findings data
+  const openFindings = Object.values(findings).flat()
+    .filter(f => f.status === 'open' || f.status === 'remediation').length ||
+    audits.reduce((sum, a) => {
+      const auditFindings = findings[a.id] || [];
+      return sum + auditFindings.filter(f => f.status === 'open' || f.status === 'remediation').length;
+    }, 0);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Loader className="h-8 w-8 animate-spin text-sky-500 mx-auto mb-4" />
+            <p className="text-slate-600">Loading audits...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6 animate-fadeIn">
+      {/* Create Audit Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <Card className="rounded-2xl border border-slate-200/60 shadow-lg max-w-md w-full">
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle>Create New Audit</CardTitle>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Audit Name *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="e.g., SOC 2 Type II Annual Audit"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Type *</label>
+                  <select
+                    value={formData.audit_type}
+                    onChange={(e) => setFormData({ ...formData, audit_type: e.target.value as AuditType })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  >
+                    <option value="internal">Internal</option>
+                    <option value="external">External</option>
+                    <option value="regulatory">Regulatory</option>
+                    <option value="certification">Certification</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Auditor/Organization</label>
+                  <input
+                    type="text"
+                    value={formData.auditor}
+                    onChange={(e) => setFormData({ ...formData, auditor: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="e.g., Deloitte"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Lead Auditor Name</label>
+                  <input
+                    type="text"
+                    value={formData.lead_auditor_name}
+                    onChange={(e) => setFormData({ ...formData, lead_auditor_name: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="e.g., Sarah Johnson"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="Audit description..."
+                    rows={2}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Scope (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={formData.scope}
+                    onChange={(e) => setFormData({ ...formData, scope: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="e.g., Security, Availability, Confidentiality"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Frameworks (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={formData.frameworks}
+                    onChange={(e) => setFormData({ ...formData, frameworks: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="e.g., SOC 2, ISO 27001"
+                  />
+                </div>
+
+                {error && (
+                  <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateAudit}
+                    className="flex-1 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-600 transition-colors"
+                  >
+                    Create Audit
+                  </button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -222,7 +465,10 @@ export default function AuditsPage() {
             Plan, execute, and track internal and external audits
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-600 transition-colors">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-600 transition-colors"
+        >
           <Plus className="h-4 w-4" />
           Create Audit
         </button>
@@ -370,7 +616,10 @@ export default function AuditsPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Audits ({filteredAudits.length})</CardTitle>
-            <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
               <Download className="h-4 w-4" />
               Export
             </button>
@@ -387,7 +636,7 @@ export default function AuditsPage() {
                 <div
                   key={audit.id}
                   className="rounded-2xl border border-slate-200/60 bg-white p-5 transition-all hover:shadow-md cursor-pointer"
-                  onClick={() => setSelectedAudit(selectedAudit?.id === audit.id ? null : audit)}
+                  onClick={() => handleAuditClick(audit)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
@@ -509,56 +758,70 @@ export default function AuditsPage() {
                   </div>
 
                   {/* Expanded Findings Section */}
-                  {selectedAudit?.id === audit.id && audit.findings.length > 0 && (
+                  {selectedAudit?.id === audit.id && (
                     <div className="mt-4 pt-4 border-t border-slate-200">
                       <h4 className="text-sm font-semibold text-slate-900 mb-3">
                         Audit Findings
                       </h4>
-                      <div className="space-y-2">
-                        {audit.findings.map((finding) => {
-                          const severity = severityConfig[finding.severity];
-                          const findingStatus = findingStatusConfig[finding.status];
+                      {loadingFindings[audit.id] ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader className="h-4 w-4 animate-spin text-sky-500 mr-2" />
+                          <span className="text-sm text-slate-600">Loading findings...</span>
+                        </div>
+                      ) : (findings[audit.id] && findings[audit.id].length > 0) ? (
+                        <div className="space-y-2">
+                          {findings[audit.id].map((finding) => {
+                            const severity = severityConfig[finding.severity];
+                            const findingStatus = findingStatusConfig[finding.status];
 
-                          return (
-                            <div
-                              key={finding.id}
-                              className="flex items-center justify-between rounded-xl bg-slate-50 p-3"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className={cn(
-                                  'rounded-lg px-2 py-0.5 text-xs font-medium',
-                                  severity.bg,
-                                  severity.color
-                                )}>
-                                  {severity.label}
-                                </span>
-                                <span className="text-sm text-slate-900">
-                                  {finding.title}
-                                </span>
-                                {finding.control_ref && (
-                                  <span className="text-xs text-slate-500 font-mono">
-                                    [{finding.control_ref}]
+                            return (
+                              <div
+                                key={finding.id}
+                                className="flex items-center justify-between rounded-xl bg-slate-50 p-3"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className={cn(
+                                    'rounded-lg px-2 py-0.5 text-xs font-medium',
+                                    severity.bg,
+                                    severity.color
+                                  )}>
+                                    {severity.label}
                                   </span>
-                                )}
+                                  <span className="text-sm text-slate-900">
+                                    {finding.title}
+                                  </span>
+                                  {finding.control_ref && (
+                                    <span className="text-xs text-slate-500 font-mono">
+                                      [{finding.control_ref}]
+                                    </span>
+                                  )}
+                                </div>
+                                <span className={cn(
+                                  'rounded-full px-2.5 py-1 text-xs font-medium border',
+                                  findingStatus.bg,
+                                  findingStatus.color
+                                )}>
+                                  {findingStatus.label}
+                                </span>
                               </div>
-                              <span className={cn(
-                                'rounded-full px-2.5 py-1 text-xs font-medium border',
-                                findingStatus.bg,
-                                findingStatus.color
-                              )}>
-                                {findingStatus.label}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-slate-500 text-sm">
+                          No findings recorded for this audit.
+                        </div>
+                      )}
                       <div className="mt-3 flex justify-end gap-2">
                         <button className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                           <Eye className="h-4 w-4" />
                           View Details
                         </button>
-                        <button className="flex items-center gap-1 rounded-xl bg-sky-500 px-3 py-2 text-sm font-medium text-white hover:bg-sky-600 transition-colors">
+                        <button
+                          onClick={() => handleGenerateReport(audit)}
+                          className="flex items-center gap-1 rounded-xl bg-sky-500 px-3 py-2 text-sm font-medium text-white hover:bg-sky-600 transition-colors"
+                        >
                           <FileText className="h-4 w-4" />
                           Generate Report
                         </button>
@@ -589,15 +852,17 @@ export default function AuditsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
-            {audits
-              .filter(a => new Date(a.start_date) >= new Date() || a.status === 'in_progress' || a.status === 'fieldwork')
-              .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+            {filteredAudits
+              .filter(a => a.start_date && (new Date(a.start_date) >= new Date() || a.status === 'in_progress' || a.status === 'fieldwork'))
+              .sort((a, b) => {
+                if (!a.start_date || !b.start_date) return 0;
+                return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+              })
               .slice(0, 3)
               .map((audit) => {
                 const status = statusConfig[audit.status];
-                const startDate = new Date(audit.start_date);
-                const endDate = new Date(audit.end_date);
-                const daysUntilStart = Math.ceil((startDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                const startDate = new Date(audit.start_date || '');
+                const daysUntilStart = audit.start_date ? Math.ceil((startDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
                 return (
                   <div

@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, X, Download, Box, Server, Database, Globe, Monitor, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-
-const DEFAULT_ORG_ID = 'default';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface Asset {
   id: string;
@@ -33,7 +32,15 @@ const criticalityColors = {
 };
 
 export default function AssetsPage() {
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const { currentOrg } = useAuth();
+  const orgId = currentOrg?.org_id || 'default';
+  const [assets, setAssets] = useState<Asset[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('grc_assets');
+      return stored ? JSON.parse(stored) : [];
+    }
+    return [];
+  });
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -42,13 +49,6 @@ export default function AssetsPage() {
     owner: '',
     description: '',
   });
-
-  useEffect(() => {
-    const stored = localStorage.getItem('grc_assets');
-    if (stored) {
-      setAssets(JSON.parse(stored));
-    }
-  }, []);
 
   const saveAssets = (newAssets: Asset[]) => {
     setAssets(newAssets);

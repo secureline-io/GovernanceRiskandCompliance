@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, X, GraduationCap } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-
-const DEFAULT_ORG_ID = 'default';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface TrainingProgram {
   id: string;
@@ -22,6 +21,8 @@ const frequencyBadges = {
 };
 
 export default function TrainingPage() {
+  const { currentOrg } = useAuth();
+  const orgId = currentOrg?.org_id || 'default';
   const [programs, setPrograms] = useState<TrainingProgram[]>([
     {
       id: '1',

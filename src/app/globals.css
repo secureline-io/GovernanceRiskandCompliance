@@ -159,10 +159,57 @@ body {
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
-/* Modern input focus */
+/* ===== Input System ===== */
+/* Ensure all inputs have visible text */
+input, select, textarea {
+  color: var(--text-primary);
+  background-color: var(--surface);
+  border-color: var(--border);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+/* Modern input focus - enhanced contrast for WCAG AA */
 input:focus, select:focus, textarea:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
+}
+
+/* Disabled inputs - WCAG AA contrast fix (min 4.5:1) */
+input:disabled, select:disabled, textarea:disabled {
+  color: #64748b;
+  background-color: var(--surface-secondary);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+/* Chrome/Edge autofill override - prevent yellow background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0px 1000px var(--surface) inset;
+  box-shadow: 0 0 0px 1000px var(--surface) inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Dark background autofill (for login page etc.) */
+.dark-autofill input:-webkit-autofill,
+.dark-autofill input:-webkit-autofill:hover,
+.dark-autofill input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f1f5f9;
+  -webkit-box-shadow: 0 0 0px 1000px #1e293b inset;
+  box-shadow: 0 0 0px 1000px #1e293b inset;
 }
 
 /* Tooltip */

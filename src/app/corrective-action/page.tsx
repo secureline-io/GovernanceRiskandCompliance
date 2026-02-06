@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, CheckSquare, AlertCircle, Clock } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Download, CheckSquare, AlertCircle, Clock, X } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 const DEFAULT_ORG_ID = 'default';
@@ -33,6 +33,9 @@ const statusColors = {
 export default function CorrectiveActionPage() {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
   useEffect(() => {
     const fetchFindings = async () => {
@@ -56,6 +59,11 @@ export default function CorrectiveActionPage() {
     fetchFindings();
   }, []);
 
+  const showToast = (message: string, type: 'success' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       const res = await fetch(`/api/findings/${id}`, {
@@ -69,10 +77,17 @@ export default function CorrectiveActionPage() {
           f.id === id ? { ...f, status: newStatus as any } : f
         );
         setFindings(updated);
+        showToast('Status updated successfully', 'success');
       }
     } catch (err) {
       console.error('Failed to update finding:', err);
+      showToast('Failed to update status', 'info');
     }
+  };
+
+  const handleViewDetails = (finding: Finding) => {
+    setSelectedFinding(finding);
+    setShowDetailsModal(true);
   };
 
   const handleExportCSV = () => {
@@ -120,6 +135,17 @@ export default function CorrectiveActionPage() {
 
   return (
     <div className="bg-slate-50/50 p-6 lg:p-8 min-h-screen animate-fadeIn">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={cn(
+            'fixed top-4 right-4 px-4 py-3 rounded-xl text-sm font-medium text-white shadow-lg z-50 animate-fadeIn',
+            toast.type === 'success' ? 'bg-emerald-500' : 'bg-sky-500'
+          )}
+        >
+          {toast.message}
+        </div>
+      )}
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
@@ -213,7 +239,10 @@ export default function CorrectiveActionPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <button className="text-sky-600 hover:text-sky-700 transition-colors">
+                          <button
+                            onClick={() => handleViewDetails(finding)}
+                            className="text-sky-600 hover:text-sky-700 transition-colors font-medium"
+                          >
                             Details
                           </button>
                         </td>
@@ -224,6 +253,110 @@ export default function CorrectiveActionPage() {
               </table>
             </div>
           </Card>
+        )}
+
+        {/* Details Modal */}
+        {showDetailsModal && selectedFinding && (
+          <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+            <Card className="w-full max-w-2xl border-slate-200/60 shadow-lg">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Corrective Action Details</CardTitle>
+                  <button
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      setSelectedFinding(null);
+                    }}
+                    className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-3">
+                    {selectedFinding.title}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn('px-2.5 py-1 rounded-lg text-xs font-medium border capitalize', severityColors[selectedFinding.severity])}>
+                      {selectedFinding.severity}
+                    </span>
+                    <span className={cn('px-2.5 py-1 rounded-lg text-xs font-medium border capitalize', statusColors[selectedFinding.status])}>
+                      {selectedFinding.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm text-slate-600 mb-2">Description</p>
+                  <p className="text-slate-900 text-sm leading-relaxed">
+                    {selectedFinding.description}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-sm text-slate-600 mb-1">Control Reference</p>
+                    <p className="font-mono text-sm text-slate-900 font-medium">
+                      {selectedFinding.controlRef}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600 mb-1">Due Date</p>
+                    <p className="text-sm text-slate-900 font-medium">
+                      {new Date(selectedFinding.dueDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600 mb-1">Severity</p>
+                    <p className="text-sm text-slate-900 font-medium capitalize">
+                      {selectedFinding.severity}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600 mb-1">Status</p>
+                    <p className="text-sm text-slate-900 font-medium capitalize">
+                      {selectedFinding.status === 'in_progress' ? 'In Progress' : selectedFinding.status}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-200">
+                  <p className="text-sm text-slate-600 mb-2">Related Findings</p>
+                  <p className="text-xs text-slate-500">
+                    This corrective action addresses the findings identified in the security assessment.
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      handleStatusChange(selectedFinding.id, selectedFinding.status === 'resolved' ? 'open' : 'resolved');
+                      setShowDetailsModal(false);
+                      setSelectedFinding(null);
+                    }}
+                    className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-medium"
+                  >
+                    {selectedFinding.status === 'resolved' ? 'Reopen' : 'Mark Resolved'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      setSelectedFinding(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                  >
+                    Close
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

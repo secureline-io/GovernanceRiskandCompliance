@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, X, Download, Users, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-
-const DEFAULT_ORG_ID = 'default';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface Employee {
   id: string;
@@ -23,6 +22,8 @@ const roleColors = {
 };
 
 export default function EmployeesPage() {
+  const { currentOrg } = useAuth();
+  const orgId = currentOrg?.org_id || 'default';
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');

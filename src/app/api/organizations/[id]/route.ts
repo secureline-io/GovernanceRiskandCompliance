@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, getWriteClient } from '@/lib/supabase/server';
 
 // GET /api/organizations/[id] - Get organization details with summary stats
 export async function GET(
@@ -78,33 +78,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const { client: supabase } = await getWriteClient();
     const { id } = await params;
     const body = await request.json();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is owner or admin
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('role')
-      .eq('org_id', id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     // Don't allow changing slug (could break references)
-    delete body.slug;
+    const { slug: _slug, ...updateData } = body;
 
     const { data: org, error } = await supabase
       .from('organizations')
-      .update(body)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

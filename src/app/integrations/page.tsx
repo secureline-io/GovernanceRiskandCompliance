@@ -20,6 +20,7 @@ import {
   X,
   Eye,
   EyeOff,
+  Copy,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -40,6 +41,11 @@ interface IntegrationState {
     status: 'connected' | 'disconnected' | 'pending';
     lastSync?: string;
   };
+}
+
+interface Toast {
+  type: 'success' | 'error';
+  message: string;
 }
 
 type CategoryType = 'all' | 'cloud' | 'devops' | 'communication' | 'identity' | 'monitoring';
@@ -202,6 +208,12 @@ export default function IntegrationsPage() {
   const [integrationStates, setIntegrationStates] = useState<IntegrationState>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPasswords, setShowPasswords] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [selectedIntegrationType, setSelectedIntegrationType] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
+  const [apiKeyInputStates, setApiKeyInputStates] = useState<{ [key: string]: string }>({});
+  const [showCopied, setShowCopied] = useState<string | null>(null);
 
   // Initialize integration states from localStorage
   useEffect(() => {
@@ -258,6 +270,86 @@ export default function IntegrationsPage() {
       newSet.add(id);
     }
     setShowPasswords(newSet);
+  };
+
+  const handleApiKeyChange = (integrationId: string, value: string) => {
+    setApiKeyInputStates((prev) => ({
+      ...prev,
+      [integrationId]: value,
+    }));
+  };
+
+  const handleSaveApiKey = (integrationId: string) => {
+    const key = apiKeyInputStates[integrationId];
+    if (!key) {
+      setToast({ type: 'error', message: 'Please enter an API key' });
+      return;
+    }
+
+    // Validate API key format (basic validation)
+    if (key.length < 10) {
+      setToast({ type: 'error', message: 'API key appears to be invalid' });
+      return;
+    }
+
+    // Save and connect the integration
+    setIntegrationStates((prev) => ({
+      ...prev,
+      [integrationId]: {
+        status: 'connected',
+        lastSync: 'Just now',
+      },
+    }));
+
+    setToast({ type: 'success', message: 'Integration connected successfully' });
+    setApiKeyInputStates((prev) => ({
+      ...prev,
+      [integrationId]: '',
+    }));
+  };
+
+  const handleCopyApiKey = (integrationId: string) => {
+    const key = apiKeyInputStates[integrationId];
+    if (key) {
+      navigator.clipboard.writeText(key);
+      setShowCopied(integrationId);
+      setTimeout(() => setShowCopied(null), 2000);
+    }
+  };
+
+  const handleAddIntegration = async () => {
+    if (!selectedIntegrationType || !apiKey) {
+      setToast({ type: 'error', message: 'Please select an integration type and enter an API key' });
+      return;
+    }
+
+    setAddLoading(true);
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Add integration to state
+      const integration = INTEGRATIONS.find((i) => i.id === selectedIntegrationType);
+      if (integration) {
+        setIntegrationStates((prev) => ({
+          ...prev,
+          [selectedIntegrationType]: {
+            status: 'connected',
+            lastSync: 'Just now',
+          },
+        }));
+
+        setToast({ type: 'success', message: `${integration.name} added successfully` });
+        setIsModalOpen(false);
+        setSelectedIntegrationType('');
+        setApiKey('');
+      }
+    } catch (err) {
+      console.error('Error adding integration:', err);
+      setToast({ type: 'error', message: 'Failed to add integration' });
+    } finally {
+      setAddLoading(false);
+    }
   };
 
   // Filter integrations
@@ -488,23 +580,41 @@ export default function IntegrationsPage() {
                                 <label className="block text-xs font-medium text-slate-700">
                                   API Key
                                 </label>
-                                <div className="relative">
-                                  <input
-                                    type={showPasswords.has(integration.id) ? 'text' : 'password'}
-                                    placeholder="Enter API key"
-                                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-transparent"
-                                  />
+                                <div className="relative flex gap-2">
+                                  <div className="flex-1 relative">
+                                    <input
+                                      type={showPasswords.has(integration.id) ? 'text' : 'password'}
+                                      placeholder="Enter API key"
+                                      value={apiKeyInputStates[integration.id] || ''}
+                                      onChange={(e) => handleApiKeyChange(integration.id, e.target.value)}
+                                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-transparent"
+                                    />
+                                    <button
+                                      onClick={() => toggleShowPassword(integration.id)}
+                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    >
+                                      {showPasswords.has(integration.id) ? (
+                                        <EyeOff className="w-3.5 h-3.5" />
+                                      ) : (
+                                        <Eye className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  </div>
                                   <button
-                                    onClick={() => toggleShowPassword(integration.id)}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    onClick={() => handleSaveApiKey(integration.id)}
+                                    className="px-2 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                                    title="Save API key"
                                   >
-                                    {showPasswords.has(integration.id) ? (
-                                      <EyeOff className="w-3.5 h-3.5" />
+                                    {showCopied === integration.id ? (
+                                      <Check className="w-3.5 h-3.5" />
                                     ) : (
-                                      <Eye className="w-3.5 h-3.5" />
+                                      <Copy className="w-3.5 h-3.5" />
                                     )}
                                   </button>
                                 </div>
+                                {showCopied === integration.id && (
+                                  <p className="text-xs text-emerald-600">API key copied!</p>
+                                )}
                               </div>
                             )}
 
@@ -553,7 +663,11 @@ export default function IntegrationsPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle>Add New Integration</CardTitle>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setSelectedIntegrationType('');
+                  setApiKey('');
+                }}
                 className="text-slate-400 hover:text-slate-600"
               >
                 <X className="w-5 h-5" />
@@ -564,10 +678,16 @@ export default function IntegrationsPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Select Integration Type
                 </label>
-                <select className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-transparent bg-white text-slate-900 text-sm">
-                  <option>Choose an integration...</option>
+                <select
+                  value={selectedIntegrationType}
+                  onChange={(e) => setSelectedIntegrationType(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-transparent bg-white text-slate-900 text-sm"
+                >
+                  <option value="">Choose an integration...</option>
                   {INTEGRATIONS.map((integration) => (
-                    <option key={integration.id}>{integration.name}</option>
+                    <option key={integration.id} value={integration.id}>
+                      {integration.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -577,26 +697,55 @@ export default function IntegrationsPage() {
                 <input
                   type="password"
                   placeholder="Enter your API key"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
                   className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-transparent bg-white text-slate-900 text-sm"
                 />
               </div>
 
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setSelectedIntegrationType('');
+                    setApiKey('');
+                  }}
                   className="flex-1 px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-700 font-medium text-sm transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-medium text-sm transition-colors"
+                  onClick={handleAddIntegration}
+                  disabled={addLoading || !selectedIntegrationType || !apiKey}
+                  className="flex-1 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Add Integration
+                  {addLoading ? 'Adding...' : 'Add Integration'}
                 </button>
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 p-4 rounded-xl border ${
+          toast.type === 'success'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            : 'bg-red-50 border-red-200 text-red-700'
+        }`}>
+          {toast.type === 'success' ? (
+            <Check className="h-5 w-5 flex-shrink-0" />
+          ) : (
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+          )}
+          <p className="text-sm font-medium">{toast.message}</p>
+          <button
+            onClick={() => setToast(null)}
+            className="ml-auto text-xs hover:opacity-70"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
     </div>
