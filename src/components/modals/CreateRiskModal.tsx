@@ -279,7 +279,7 @@ export default function CreateRiskModal({ isOpen, onClose, onSubmit }: CreateRis
             Cancel
           </button>
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={!formData.title || submitting}
             className="px-6 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
