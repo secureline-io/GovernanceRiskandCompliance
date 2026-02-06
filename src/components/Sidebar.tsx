@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/lib/auth/AuthContext';
 import {
   LayoutDashboard,
   Shield,
@@ -14,7 +15,6 @@ import {
   Users,
   Building2,
   ChevronDown,
-  ChevronRight,
   Settings,
   BookOpen,
   ClipboardList,
@@ -28,7 +28,9 @@ import {
   Link2,
   BarChart3,
   AlertOctagon,
-  CheckSquare
+  CheckSquare,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +49,7 @@ interface NavSection {
   href?: string;
   badge?: number;
   divider?: boolean;
+  requireAdmin?: boolean;
 }
 
 interface NavItem {
@@ -58,6 +61,7 @@ interface NavItem {
 
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
+  const { profile, currentOrg, isSuperAdmin, signOut } = useAuth();
   const [expandedSections, setExpandedSections] = useState<string[]>([
     'compliance',
     'risk',
@@ -73,6 +77,17 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         : [...prev, sectionId]
     );
   };
+
+  const initials = profile?.full_name
+    ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'U';
+
+  const displayName = profile?.full_name || 'User';
+  const displayRole = isSuperAdmin
+    ? 'Super Admin'
+    : currentOrg?.role
+      ? currentOrg.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+      : 'User';
 
   const navSections: NavSection[] = [
     {
@@ -150,12 +165,27 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       href: '/integrations'
     },
     {
+      id: 'admin',
+      label: 'Admin Panel',
+      icon: <ShieldCheck className="w-5 h-5" />,
+      href: '/admin',
+      requireAdmin: true,
+    },
+    {
       id: 'settings',
       label: 'Settings',
       icon: <Settings className="w-5 h-5" />,
       href: '/settings'
     },
   ];
+
+  // Filter out admin-only items for non-admin users
+  const filteredNavSections = navSections.filter(section => {
+    if (section.requireAdmin) {
+      return isSuperAdmin || currentOrg?.role === 'owner' || currentOrg?.role === 'admin';
+    }
+    return true;
+  });
 
   const isActiveLink = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -171,7 +201,6 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   if (!isOpen) {
     return (
       <div className="w-[72px] bg-gradient-to-b from-slate-900 to-slate-950 flex flex-col items-center py-4 border-r border-slate-800 transition-all duration-300 h-full">
-        {/* Logo */}
         <div className="mb-8">
           <Link
             href="/"
@@ -182,9 +211,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           </Link>
         </div>
 
-        {/* Navigation Icons */}
         <nav className="flex-1 space-y-3 flex flex-col items-center">
-          {navSections
+          {filteredNavSections
             .filter(section => !section.divider)
             .slice(0, 6)
             .map((section) => {
@@ -209,9 +237,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             })}
         </nav>
 
-        {/* Bottom actions */}
         <div className="space-y-3 flex flex-col items-center">
-          {/* Collapse button */}
           <button
             onClick={() => setIsOpen?.(true)}
             className="w-10 h-10 rounded-lg text-slate-400 hover:bg-white/5 hover:text-slate-300 flex items-center justify-center transition-all duration-300"
@@ -220,10 +246,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             <ChevronsRight className="w-5 h-5" />
           </button>
 
-          {/* User Avatar */}
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-semibold text-xs hover:shadow-lg hover:shadow-sky-500/20 transition-all duration-300 cursor-pointer"
-            title="Ashish M">
-            AM
+            title={displayName}>
+            {initials}
           </div>
         </div>
       </div>
@@ -241,22 +266,20 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           </div>
           <div>
             <h1 className="text-lg font-bold text-white">Secureline</h1>
-            <p className="text-xs text-slate-400">GRC Platform</p>
+            <p className="text-xs text-slate-400">{currentOrg?.org_name || 'GRC Platform'}</p>
           </div>
         </Link>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-        {navSections.map((section) => {
-          // Divider
+        {filteredNavSections.map((section) => {
           if (section.divider) {
             return (
               <div key={section.id} className="my-4 border-t border-slate-800/50" />
             );
           }
 
-          // Collapsible section with items
           if (section.items) {
             const isExpanded = expandedSections.includes(section.id);
             const isActive = isActiveSectionItem(section);
@@ -273,10 +296,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   )}
                 >
                   <div className="flex items-center space-x-3 flex-1">
-                    <span className={cn(
-                      'transition-colors duration-200',
-                      isActive ? 'text-sky-400' : ''
-                    )}>
+                    <span className={cn('transition-colors duration-200', isActive ? 'text-sky-400' : '')}>
                       {section.icon}
                     </span>
                     <span className="font-medium text-sm">{section.label}</span>
@@ -286,23 +306,15 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                       </span>
                     )}
                   </div>
-                  <div className={cn(
-                    'transition-transform duration-300',
-                    isExpanded ? 'rotate-180' : ''
-                  )}>
-                    <ChevronDown className={cn(
-                      'w-4 h-4',
-                      isActive ? 'text-sky-400' : 'text-slate-600'
-                    )} />
+                  <div className={cn('transition-transform duration-300', isExpanded ? 'rotate-180' : '')}>
+                    <ChevronDown className={cn('w-4 h-4', isActive ? 'text-sky-400' : 'text-slate-600')} />
                   </div>
                 </button>
 
-                {/* Expanded items */}
                 {isExpanded && (
                   <div className="mt-2 ml-0 space-y-1 animate-in fade-in duration-200">
                     {section.items.map((item) => {
                       const itemActive = isActiveLink(item.href);
-
                       return (
                         <Link
                           key={item.id}
@@ -317,10 +329,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                           {itemActive && (
                             <div className="absolute left-0 top-0 bottom-0 w-1 bg-sky-500 rounded-r-full" />
                           )}
-                          <div className={cn(
-                            'ml-1 transition-colors duration-200',
-                            itemActive ? 'text-sky-400' : ''
-                          )}>
+                          <div className={cn('ml-1 transition-colors duration-200', itemActive ? 'text-sky-400' : '')}>
                             {item.icon}
                           </div>
                           <span>{item.label}</span>
@@ -333,9 +342,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             );
           }
 
-          // Single link item
           const isActive = isActiveLink(section.href || '');
-
           return (
             <Link
               key={section.id}
@@ -350,10 +357,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               {isActive && (
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-sky-500 rounded-r-full" />
               )}
-              <span className={cn(
-                'transition-colors duration-200',
-                isActive ? 'text-sky-400' : ''
-              )}>
+              <span className={cn('transition-colors duration-200', isActive ? 'text-sky-400' : '')}>
                 {section.icon}
               </span>
               <span className="text-sm font-medium">{section.label}</span>
@@ -369,7 +373,6 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
       {/* Collapse button + User Profile */}
       <div className="border-t border-slate-800/50 px-3 py-4 space-y-3">
-        {/* Collapse button */}
         <button
           onClick={() => setIsOpen?.(false)}
           className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-300 hover:bg-white/5 transition-all duration-200"
@@ -382,14 +385,23 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         {/* User Profile */}
         <div className="flex items-center space-x-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-all duration-200 cursor-pointer group">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 group-hover:shadow-lg group-hover:shadow-sky-500/20 transition-all duration-300 relative">
-            AM
+            {initials}
             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-slate-900" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">Ashish M</p>
-            <p className="text-xs text-slate-400 truncate">Security Admin</p>
+            <p className="text-sm font-medium text-white truncate">{displayName}</p>
+            <p className="text-xs text-slate-400 truncate">{displayRole}</p>
           </div>
         </div>
+
+        {/* Sign Out */}
+        <button
+          onClick={() => signOut()}
+          className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="text-sm font-medium">Sign Out</span>
+        </button>
       </div>
     </div>
   );

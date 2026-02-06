@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Building2, Plus, Download, Search, RefreshCw, AlertTriangle,
-  CheckCircle2, Clock, Eye
+  CheckCircle2, Clock, Eye, X, Loader
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth/AuthContext';
 import CreateVendorModal, { VendorFormData } from '@/components/modals/CreateVendorModal';
 import { exportToCSV } from '@/lib/export';
-
-const DEFAULT_ORG_ID = 'default';
 
 const riskConfig: Record<string, { label: string; color: string; bg: string; borderColor: string; icon: typeof AlertTriangle }> = {
   critical: { label: 'Critical', color: 'text-red-700', bg: 'bg-red-50', borderColor: 'border-red-200', icon: AlertTriangle },
@@ -38,22 +37,28 @@ const SkeletonRow = () => (
 );
 
 export default function VendorsPage() {
+  const { currentOrg } = useAuth();
+  const orgId = currentOrg?.org_id || 'default';
+
   const [filter, setFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<any | null>(null);
+  const [assessmentLoading, setAssessmentLoading] = useState(false);
+  const [assessments, setAssessments] = useState<any[]>([]);
 
   const fetchVendors = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/vendors?org_id=${DEFAULT_ORG_ID}`);
+      const res = await fetch(`/api/vendors?org_id=${orgId}`);
       const json = await res.json();
       const data = json.data || json || [];
       setVendors(Array.isArray(data) ? data : []);
     } catch { setVendors([]); }
     finally { setLoading(false); }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => { fetchVendors(); }, [fetchVendors]);
 
@@ -62,7 +67,7 @@ export default function VendorsPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        org_id: DEFAULT_ORG_ID,
+        org_id: orgId,
         name: data.name,
         industry: data.category,
         contact_email: data.contact_email,
@@ -81,6 +86,40 @@ export default function VendorsPage() {
     }
 
     await fetchVendors();
+  };
+
+  const handleViewAssessment = async (vendor: any) => {
+    setSelectedVendor(vendor);
+    setAssessmentLoading(true);
+    try {
+      const res = await fetch(`/api/vendors/${vendor.id}/assessments`);
+      const json = await res.json();
+      const data = json.data || json || [];
+      setAssessments(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to fetch assessments:', error);
+      setAssessments([]);
+    } finally {
+      setAssessmentLoading(false);
+    }
+  };
+
+  const handleAddAssessment = async (vendorId: string) => {
+    try {
+      const res = await fetch(`/api/vendors/${vendorId}/assessments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'New Assessment',
+          status: 'in_progress'
+        }),
+      });
+      if (res.ok) {
+        await handleViewAssessment(selectedVendor);
+      }
+    } catch (error) {
+      console.error('Failed to add assessment:', error);
+    }
   };
 
   const handleExport = () => {
@@ -356,7 +395,7 @@ export default function VendorsPage() {
                         </td>
                         <td className="px-5 py-4">
                           <button
-                            onClick={() => {}}
+                            onClick={() => handleViewAssessment(vendor)}
                             className="text-xs font-medium text-sky-600 hover:text-sky-700 transition-colors flex items-center gap-1"
                           >
                             <Eye className="w-3 h-3" />
@@ -378,6 +417,129 @@ export default function VendorsPage() {
         onClose={() => setCreateModalOpen(false)}
         onSubmit={handleCreateVendor}
       />
+
+      {/* Vendor Detail Modal */}
+      {selectedVendor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="px-8 py-6 border-b border-slate-200/60 bg-gradient-to-r from-slate-50 to-sky-50 flex items-start justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">{selectedVendor.name}</h2>
+                <div className="flex items-center gap-3 mt-2">
+                  {selectedVendor.industry && (
+                    <span className="text-sm text-slate-600">{selectedVendor.industry}</span>
+                  )}
+                  {selectedVendor.risk_level && (
+                    <span className={cn('text-xs font-medium px-2 py-1 rounded-full',
+                      riskConfig[selectedVendor.risk_level]?.bg || 'bg-slate-100',
+                      riskConfig[selectedVendor.risk_level]?.color || 'text-slate-600'
+                    )}>
+                      {riskConfig[selectedVendor.risk_level]?.label || 'Unknown'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedVendor(null)}
+                className="p-2 hover:bg-slate-200/50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-6">
+              {/* Vendor Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Status</p>
+                  <p className="text-sm text-slate-900">{statusConfig[selectedVendor.status]?.label || selectedVendor.status}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Tier</p>
+                  <p className="text-sm text-slate-900">{selectedVendor.tier || '-'}</p>
+                </div>
+                {selectedVendor.contact_email && (
+                  <div className="col-span-2">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Contact Email</p>
+                    <p className="text-sm text-slate-900">{selectedVendor.contact_email}</p>
+                  </div>
+                )}
+                {selectedVendor.contract_start_date && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Contract Start</p>
+                    <p className="text-sm text-slate-900">{new Date(selectedVendor.contract_start_date).toLocaleDateString()}</p>
+                  </div>
+                )}
+                {selectedVendor.contract_end_date && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Contract End</p>
+                    <p className="text-sm text-slate-900">{new Date(selectedVendor.contract_end_date).toLocaleDateString()}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Assessments Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Assessments</h3>
+                  <button
+                    onClick={() => handleAddAssessment(selectedVendor.id)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium bg-sky-500 hover:bg-sky-600 text-white transition-colors flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Assessment
+                  </button>
+                </div>
+
+                {assessmentLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader className="w-5 h-5 animate-spin text-sky-500" />
+                  </div>
+                ) : assessments.length > 0 ? (
+                  <div className="space-y-3">
+                    {assessments.map((assessment: any) => (
+                      <div key={assessment.id} className="p-4 border border-slate-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-slate-900">{assessment.name || 'Assessment'}</p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : 'Date unknown'}
+                            </p>
+                          </div>
+                          <span className={cn(
+                            'text-xs font-medium px-2 py-1 rounded-full',
+                            assessment.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                            assessment.status === 'in_progress' ? 'bg-amber-100 text-amber-700' :
+                            'bg-slate-100 text-slate-600'
+                          )}>
+                            {assessment.status || 'pending'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-slate-500">No assessments yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-8 py-4 border-t border-slate-200/60 bg-slate-50/50 flex items-center justify-end">
+              <button
+                onClick={() => setSelectedVendor(null)}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

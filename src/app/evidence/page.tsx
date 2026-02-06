@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   FileText, Plus, Download, Search, FolderOpen, Cloud, User, CheckCircle2,
-  RefreshCw, Clock, Code
+  RefreshCw, Clock, Code, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth/AuthContext';
 import EvidenceUploadModal, { EvidenceData } from '@/components/modals/EvidenceUploadModal';
 import { exportToCSV, exportToJSON } from '@/lib/export';
-
-const DEFAULT_ORG_ID = 'default';
 
 const sourceConfig: Record<string, { label: string; color: string; bg: string; badge: string; icon: typeof Cloud }> = {
   aws: { label: 'AWS', color: 'text-orange-600', bg: 'bg-orange-50', badge: 'bg-orange-100 text-orange-700', icon: Cloud },
@@ -38,22 +37,26 @@ const SkeletonRow = () => (
 );
 
 export default function EvidencePage() {
+  const { currentOrg } = useAuth();
+  const orgId = currentOrg?.org_id || 'default';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [evidenceList, setEvidenceList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEvidence, setSelectedEvidence] = useState<any | null>(null);
 
   const fetchEvidence = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/evidence?org_id=${DEFAULT_ORG_ID}`);
+      const res = await fetch(`/api/evidence?org_id=${orgId}`);
       const json = await res.json();
       const data = json.data || json || [];
       setEvidenceList(Array.isArray(data) ? data : []);
     } catch { setEvidenceList([]); }
     finally { setLoading(false); }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => { fetchEvidence(); }, [fetchEvidence]);
 
@@ -62,7 +65,7 @@ export default function EvidencePage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        org_id: DEFAULT_ORG_ID,
+        org_id: orgId,
         title: evidenceData.title,
         description: evidenceData.description,
         source: evidenceData.source,
@@ -332,7 +335,7 @@ export default function EvidencePage() {
                         </td>
                         <td className="px-5 py-4">
                           <button
-                            onClick={() => {}}
+                            onClick={() => setSelectedEvidence(item)}
                             className="text-xs font-medium text-sky-600 hover:text-sky-700 transition-colors"
                           >
                             View
@@ -347,6 +350,111 @@ export default function EvidencePage() {
           )}
         </div>
       </div>
+
+      {/* EVIDENCE DETAIL MODAL */}
+      {selectedEvidence && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-slate-200 bg-white">
+              <h2 className="text-xl font-bold text-slate-900">Evidence Details</h2>
+              <button
+                onClick={() => setSelectedEvidence(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Title */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Title</label>
+                <p className="text-sm font-medium text-slate-900 mt-1">{selectedEvidence.title}</p>
+              </div>
+
+              {/* Description */}
+              {selectedEvidence.description && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</label>
+                  <p className="text-sm text-slate-700 mt-1">{selectedEvidence.description}</p>
+                </div>
+              )}
+
+              {/* Source */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Source</label>
+                <div className="mt-1">
+                  <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium', sourceConfig[selectedEvidence.source]?.badge)}>
+                    {sourceConfig[selectedEvidence.source]?.label || selectedEvidence.source}
+                  </span>
+                </div>
+              </div>
+
+              {/* Collector */}
+              {selectedEvidence.collector && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Collector</label>
+                  <p className="text-sm text-slate-700 mt-1">{selectedEvidence.collector}</p>
+                </div>
+              )}
+
+              {/* Tags */}
+              {selectedEvidence.tags && selectedEvidence.tags.length > 0 && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tags</label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedEvidence.tags.map((tag: string, index: number) => (
+                      <span key={index} className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Created At */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Created</label>
+                <p className="text-sm text-slate-700 mt-1">
+                  {new Date(selectedEvidence.created_at || selectedEvidence.collected_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              </div>
+
+              {/* File URL */}
+              {selectedEvidence.file_url && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">File</label>
+                  <a
+                    href={selectedEvidence.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-sky-600 hover:text-sky-700 transition-colors mt-1 inline-flex items-center gap-1"
+                  >
+                    Download File
+                    <span className="text-xs">↗</span>
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Close Button */}
+            <div className="sticky bottom-0 flex justify-end p-6 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={() => setSelectedEvidence(null)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <EvidenceUploadModal
         isOpen={uploadModalOpen}

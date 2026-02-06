@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import {
   Search, Plus, Lock, ExternalLink, Check, ChevronRight,
   Shield, FileText, AlertCircle, CheckCircle, Clock, RefreshCw,
-  BarChart3, Filter, Download, Settings, Eye, TrendingUp
+  BarChart3, Filter, Download, Settings, Eye, TrendingUp, X
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/lib/auth/AuthContext';
 import CreateFrameworkModal, { FrameworkFormData } from '@/components/modals/CreateFrameworkModal';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/lib/export';
 
@@ -73,6 +74,9 @@ const getCategoryColor = (category: string | null) => {
 };
 
 export default function CompliancePage() {
+  const { currentOrg } = useAuth();
+  const orgId = currentOrg?.org_id || 'default';
+
   const [activeTab, setActiveTab] = useState<'my' | 'library'>('library');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -80,6 +84,14 @@ export default function CompliancePage() {
   const [loading, setLoading] = useState(true);
   const [selectedFramework, setSelectedFramework] = useState<Framework | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [showMapControlModal, setShowMapControlModal] = useState(false);
+  const [showEvidenceModal, setShowEvidenceModal] = useState(false);
+  const [selectedRequirement, setSelectedRequirement] = useState<FrameworkRequirement | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [selectedControl, setSelectedControl] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isSubmittingControl, setIsSubmittingControl] = useState(false);
+  const [isSubmittingEvidence, setIsSubmittingEvidence] = useState(false);
 
   useEffect(() => {
     fetchFrameworks();
@@ -106,7 +118,7 @@ export default function CompliancePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, org_id: orgId }),
       });
 
       const result = await response.json();
@@ -119,6 +131,124 @@ export default function CompliancePage() {
       fetchFrameworks(); // Refresh the list
     } catch (error: any) {
       throw new Error(error.message || 'Failed to create framework');
+    }
+  };
+
+  const handleAdoptFramework = async (frameworkId: string) => {
+    try {
+      const response = await fetch('/api/frameworks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          framework_id: frameworkId,
+          org_id: orgId,
+          status: 'active'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to adopt framework');
+      }
+
+      alert('Framework adopted successfully!');
+      fetchFrameworks();
+      setSelectedFramework(null);
+    } catch (error: any) {
+      alert(error.message || 'Failed to adopt framework');
+    }
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleMapControl = (requirement: FrameworkRequirement) => {
+    setSelectedRequirement(requirement);
+    setSelectedControl('');
+    setShowMapControlModal(true);
+  };
+
+  const handleUploadEvidence = (requirement: FrameworkRequirement) => {
+    setSelectedRequirement(requirement);
+    setUploadedFile(null);
+    setShowEvidenceModal(true);
+  };
+
+  const handleSubmitMapControl = async () => {
+    if (!selectedControl || !selectedRequirement) {
+      showToast('Please select a control', 'error');
+      return;
+    }
+
+    setIsSubmittingControl(true);
+    try {
+      const response = await fetch(`/api/compliance/requirements/${selectedRequirement.id}/controls`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ control_id: selectedControl }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to map control');
+      }
+
+      showToast('Control mapped successfully!');
+      setShowMapControlModal(false);
+      setSelectedControl('');
+    } catch (error: any) {
+      showToast(error.message || 'Failed to map control', 'error');
+    } finally {
+      setIsSubmittingControl(false);
+    }
+  };
+
+  const handleSubmitEvidence = async () => {
+    if (!uploadedFile || !selectedRequirement) {
+      showToast('Please select a file to upload', 'error');
+      return;
+    }
+
+    setIsSubmittingEvidence(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+      formData.append('requirement_id', selectedRequirement.id);
+
+      const response = await fetch('/api/compliance/evidence', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload evidence');
+      }
+
+      showToast('Evidence uploaded successfully!');
+      setShowEvidenceModal(false);
+      setUploadedFile(null);
+    } catch (error: any) {
+      showToast(error.message || 'Failed to upload evidence', 'error');
+    } finally {
+      setIsSubmittingEvidence(false);
+    }
+  };
+
+  const handleMarkCompliant = async (requirementId: string) => {
+    try {
+      const response = await fetch(`/api/compliance/requirements/${requirementId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'compliant' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark requirement as compliant');
+      }
+
+      showToast('Requirement marked as compliant!');
+    } catch (error: any) {
+      showToast(error.message || 'Failed to update requirement', 'error');
     }
   };
 
@@ -164,6 +294,22 @@ export default function CompliancePage() {
 
   return (
     <div className="p-8 space-y-8 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white z-50 animate-fadeIn ${
+          toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+        }`}>
+          <div className="flex items-center gap-2">
+            {toast.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -464,6 +610,10 @@ export default function CompliancePage() {
         <FrameworkDetailsModal
           framework={selectedFramework}
           onClose={() => setSelectedFramework(null)}
+          onAdopt={handleAdoptFramework}
+          onMapControl={handleMapControl}
+          onUploadEvidence={handleUploadEvidence}
+          onMarkCompliant={handleMarkCompliant}
         />
       )}
 
@@ -473,6 +623,125 @@ export default function CompliancePage() {
         onClose={() => setCreateModalOpen(false)}
         onSubmit={handleCreateFramework}
       />
+
+      {/* Map Control Modal */}
+      {showMapControlModal && selectedRequirement && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="px-8 py-6 border-b border-slate-200/60 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Map Control to Requirement</h3>
+              <button
+                onClick={() => setShowMapControlModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-8 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Requirement</p>
+                <p className="text-sm font-medium text-slate-900">{selectedRequirement.code}</p>
+                <p className="text-sm text-slate-600 mt-1">{selectedRequirement.name}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  Select Control
+                </label>
+                <select
+                  value={selectedControl}
+                  onChange={(e) => setSelectedControl(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                >
+                  <option value="">Choose a control...</option>
+                  <option value="control_1">Control 1 - Access Management</option>
+                  <option value="control_2">Control 2 - Data Protection</option>
+                  <option value="control_3">Control 3 - Incident Response</option>
+                  <option value="control_4">Control 4 - Network Security</option>
+                  <option value="control_5">Control 5 - Physical Security</option>
+                </select>
+              </div>
+            </div>
+            <div className="px-8 py-4 border-t border-slate-200/60 bg-slate-50 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowMapControlModal(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitMapControl}
+                disabled={isSubmittingControl}
+                className="px-4 py-2 text-sm font-medium bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSubmittingControl && <RefreshCw className="w-4 h-4 animate-spin" />}
+                Map Control
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Evidence Modal */}
+      {showEvidenceModal && selectedRequirement && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="px-8 py-6 border-b border-slate-200/60 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Upload Evidence</h3>
+              <button
+                onClick={() => setShowEvidenceModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-8 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Requirement</p>
+                <p className="text-sm font-medium text-slate-900">{selectedRequirement.code}</p>
+                <p className="text-sm text-slate-600 mt-1">{selectedRequirement.name}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  Upload File
+                </label>
+                <input
+                  type="file"
+                  id="evidence-file"
+                  onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx"
+                  className="hidden"
+                />
+                <label
+                  htmlFor="evidence-file"
+                  className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center hover:border-sky-300 transition-colors cursor-pointer block"
+                >
+                  <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm text-slate-600">
+                    {uploadedFile ? uploadedFile.name : 'Drag and drop files or click to browse'}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">PDF, DOC, DOCX, XLS, XLSX</p>
+                </label>
+              </div>
+            </div>
+            <div className="px-8 py-4 border-t border-slate-200/60 bg-slate-50 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowEvidenceModal(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitEvidence}
+                disabled={isSubmittingEvidence || !uploadedFile}
+                className="px-4 py-2 text-sm font-medium bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSubmittingEvidence && <RefreshCw className="w-4 h-4 animate-spin" />}
+                Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -480,10 +749,18 @@ export default function CompliancePage() {
 // Framework Details Modal Component
 function FrameworkDetailsModal({
   framework,
-  onClose
+  onClose,
+  onAdopt,
+  onMapControl,
+  onUploadEvidence,
+  onMarkCompliant
 }: {
   framework: Framework;
   onClose: () => void;
+  onAdopt: (frameworkId: string) => void;
+  onMapControl: (requirement: FrameworkRequirement) => void;
+  onUploadEvidence: (requirement: FrameworkRequirement) => void;
+  onMarkCompliant: (requirementId: string) => void;
 }) {
   const [requirements, setRequirements] = useState<FrameworkRequirement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -586,7 +863,10 @@ function FrameworkDetailsModal({
                 <Download className="w-4 h-4" />
                 Export
               </button>
-              <button className="inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-all font-medium text-sm shadow-lg shadow-sky-500/20">
+              <button
+                onClick={() => onAdopt(framework.id)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-all font-medium text-sm shadow-lg shadow-sky-500/20"
+              >
                 <Plus className="w-4 h-4" />
                 Adopt Framework
               </button>
@@ -645,6 +925,9 @@ function FrameworkDetailsModal({
                     domainCode={domainCode}
                     domainName={domainName}
                     requirements={reqs}
+                    onMapControl={onMapControl}
+                    onUploadEvidence={onUploadEvidence}
+                    onMarkCompliant={onMarkCompliant}
                   />
                 );
               })}
@@ -652,7 +935,7 @@ function FrameworkDetailsModal({
           ) : (
             <div className="divide-y divide-slate-200/60">
               {filteredRequirements.map((req) => (
-                <RequirementRow key={req.id} requirement={req} showDomain />
+                <RequirementRow key={req.id} requirement={req} showDomain onMapControl={onMapControl} onUploadEvidence={onUploadEvidence} onMarkCompliant={onMarkCompliant} />
               ))}
             </div>
           )}
@@ -673,11 +956,17 @@ function FrameworkDetailsModal({
 function DomainSection({
   domainCode,
   domainName,
-  requirements
+  requirements,
+  onMapControl,
+  onUploadEvidence,
+  onMarkCompliant,
 }: {
   domainCode: string;
   domainName: string;
   requirements: FrameworkRequirement[];
+  onMapControl?: (req: FrameworkRequirement) => void;
+  onUploadEvidence?: (req: FrameworkRequirement) => void;
+  onMarkCompliant?: (reqId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -697,7 +986,7 @@ function DomainSection({
       {expanded && (
         <div className="divide-y divide-slate-200/60 border-l-4 border-sky-200 bg-sky-50/30">
           {requirements.map((req) => (
-            <RequirementRow key={req.id} requirement={req} />
+            <RequirementRow key={req.id} requirement={req} onMapControl={onMapControl} onUploadEvidence={onUploadEvidence} onMarkCompliant={onMarkCompliant} />
           ))}
         </div>
       )}
@@ -708,10 +997,16 @@ function DomainSection({
 // Requirement Row Component
 function RequirementRow({
   requirement,
-  showDomain = false
+  showDomain = false,
+  onMapControl,
+  onUploadEvidence,
+  onMarkCompliant,
 }: {
   requirement: FrameworkRequirement;
   showDomain?: boolean;
+  onMapControl?: (req: FrameworkRequirement) => void;
+  onUploadEvidence?: (req: FrameworkRequirement) => void;
+  onMarkCompliant?: (reqId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -781,15 +1076,24 @@ function RequirementRow({
           )}
 
           <div className="flex gap-3 pt-3 flex-wrap">
-            <button className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all font-medium shadow-sm">
+            <button
+              onClick={() => onMapControl?.(requirement)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all font-medium shadow-sm"
+            >
               <Settings className="w-4 h-4" />
               Map Control
             </button>
-            <button className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-all font-medium">
+            <button
+              onClick={() => onUploadEvidence?.(requirement)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-all font-medium"
+            >
               <FileText className="w-4 h-4" />
               Upload Evidence
             </button>
-            <button className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-all font-medium">
+            <button
+              onClick={() => onMarkCompliant?.(requirement.id)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-all font-medium"
+            >
               <CheckCircle className="w-4 h-4" />
               Mark Compliant
             </button>

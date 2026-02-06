@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 // Types
 type DocumentCategory = 'Policies' | 'Certificates' | 'Audit Reports' | 'Evidence' | 'Contracts' | 'Credentials';
@@ -94,6 +95,10 @@ export default function VaultPage() {
     accessLevel: 'Internal' as AccessLevel,
     fileType: 'pdf',
   });
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareEmail, setShareEmail] = useState('');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
   // Load from localStorage
   useEffect(() => {
@@ -155,6 +160,32 @@ export default function VaultPage() {
     localStorage.setItem('vault_documents', JSON.stringify(updated));
   };
 
+  const showToast = (message: string, type: 'success' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleView = (doc: Document) => {
+    setSelectedDocument(doc);
+  };
+
+  const handleDownload = (doc: Document) => {
+    showToast(`Downloading ${doc.name}...`, 'info');
+  };
+
+  const handleShareClick = (doc: Document) => {
+    setSelectedDocument(doc);
+    setShowShareModal(true);
+    setShareEmail('');
+  };
+
+  const handleSendShare = () => {
+    if (!shareEmail.trim() || !selectedDocument) return;
+    showToast(`Share link sent to ${shareEmail}`, 'success');
+    setShowShareModal(false);
+    setShareEmail('');
+  };
+
   const totalSize = documents.reduce((sum, doc) => sum + doc.size, 0);
   const sharedCount = Math.floor(documents.length * 0.4);
   const pendingReviews = Math.floor(documents.length * 0.15);
@@ -177,6 +208,17 @@ export default function VaultPage() {
 
   return (
     <div className="p-6 space-y-6 animate-fadeIn">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={cn(
+            'fixed top-4 right-4 px-4 py-3 rounded-xl text-sm font-medium text-white shadow-lg z-50 animate-fadeIn',
+            toast.type === 'success' ? 'bg-emerald-500' : 'bg-sky-500'
+          )}
+        >
+          {toast.message}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Document Vault</h1>
@@ -423,18 +465,21 @@ export default function VaultPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button
+                            onClick={() => handleView(doc)}
                             title="View"
                             className="p-1 hover:bg-sky-50 rounded-lg transition-colors text-sky-600"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => handleDownload(doc)}
                             title="Download"
                             className="p-1 hover:bg-sky-50 rounded-lg transition-colors text-sky-600"
                           >
                             <Download className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => handleShareClick(doc)}
                             title="Share"
                             className="p-1 hover:bg-sky-50 rounded-lg transition-colors text-sky-600"
                           >
@@ -465,6 +510,143 @@ export default function VaultPage() {
           </Card>
         </div>
       </div>
+
+      {/* View Document Modal */}
+      {selectedDocument && !showShareModal && (
+        <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl border-slate-200/60 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Document Details</CardTitle>
+                <button
+                  onClick={() => setSelectedDocument(null)}
+                  className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Name</p>
+                  <p className="text-slate-900 font-semibold mt-1">{selectedDocument.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Category</p>
+                  <p className="text-slate-900 font-semibold mt-1">{selectedDocument.category}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Uploaded By</p>
+                  <p className="text-slate-900 font-semibold mt-1">{selectedDocument.uploadedBy}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Upload Date</p>
+                  <p className="text-slate-900 font-semibold mt-1">{selectedDocument.uploadDate}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Size</p>
+                  <p className="text-slate-900 font-semibold mt-1">{selectedDocument.size.toFixed(2)} MB</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Version</p>
+                  <p className="text-slate-900 font-semibold mt-1">v{selectedDocument.version}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-slate-600">Access Level</p>
+                <span
+                  className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold border ${getAccessLevelColor(
+                    selectedDocument.accessLevel
+                  )}`}
+                >
+                  {selectedDocument.accessLevel}
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200/60">
+                <p className="text-sm font-medium text-slate-600 mb-2">Preview</p>
+                <div className="bg-slate-50 rounded-lg p-4 min-h-32 border border-slate-200/60 flex items-center justify-center">
+                  <div className="text-center">
+                    <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">Document content preview</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => handleDownload(selectedDocument)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors font-medium"
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </button>
+                <button
+                  onClick={() => setSelectedDocument(null)}
+                  className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Share Document Modal */}
+      {showShareModal && selectedDocument && (
+        <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md border-slate-200/60 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Share Document</CardTitle>
+                <button
+                  onClick={() => {
+                    setShowShareModal(false);
+                    setSelectedDocument(null);
+                  }}
+                  className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-2">Share with email</p>
+                <input
+                  type="email"
+                  value={shareEmail}
+                  onChange={(e) => setShareEmail(e.target.value)}
+                  placeholder="recipient@example.com"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSendShare}
+                  disabled={!shareEmail.trim()}
+                  className="flex-1 px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  Send
+                </button>
+                <button
+                  onClick={() => {
+                    setShowShareModal(false);
+                    setSelectedDocument(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
