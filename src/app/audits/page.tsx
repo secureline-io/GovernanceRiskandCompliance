@@ -292,11 +292,7 @@ export default function AuditsPage() {
 
   // For open findings, count from loaded findings data
   const openFindings = Object.values(findings).flat()
-    .filter(f => f.status === 'open' || f.status === 'remediation').length ||
-    audits.reduce((sum, a) => {
-      const auditFindings = findings[a.id] || [];
-      return sum + auditFindings.filter(f => f.status === 'open' || f.status === 'remediation').length;
-    }, 0);
+    .filter(f => f.status === 'open' || f.status === 'remediation').length;
 
   if (loading) {
     return (

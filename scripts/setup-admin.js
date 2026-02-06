@@ -10,10 +10,20 @@ require('dotenv').config({ path: '.env.local' });
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const ADMIN_NAME = process.env.ADMIN_NAME;
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'ashish.mathur@secureline.in';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin@3211';
-const ADMIN_NAME = process.env.ADMIN_NAME || 'Ashish Mathur';
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ADMIN_EMAIL || !ADMIN_PASSWORD || !ADMIN_NAME) {
+  console.error('❌ Missing required environment variables:');
+  if (!SUPABASE_URL) console.error('  - NEXT_PUBLIC_SUPABASE_URL');
+  if (!SERVICE_ROLE_KEY) console.error('  - SUPABASE_SERVICE_ROLE_KEY');
+  if (!ADMIN_EMAIL) console.error('  - ADMIN_EMAIL');
+  if (!ADMIN_PASSWORD) console.error('  - ADMIN_PASSWORD');
+  if (!ADMIN_NAME) console.error('  - ADMIN_NAME');
+  console.error('\nPlease set these in your .env.local file');
+  process.exit(1);
+}
 
 async function setupAdmin() {
   console.log('🔧 Secureline GRC - Super Admin Setup\n');

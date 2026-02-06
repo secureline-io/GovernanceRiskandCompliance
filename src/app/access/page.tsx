@@ -46,7 +46,7 @@ export default function AccessPage() {
         const res = await fetch(`/api/controls?org_id=${orgId}`);
         if (res.ok) {
           const data = await res.json();
-          const filtered = data.filter((c: Control) =>
+          const filtered = (data.data || []).filter((c: Control) =>
             c.category.toLowerCase().includes('access') || c.code.startsWith('AC-')
           );
           setControls(filtered);

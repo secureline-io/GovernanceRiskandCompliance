@@ -145,7 +145,7 @@ export default function AdminPage() {
       );
       if (!response.ok) throw new Error('Failed to fetch users');
       const data = await response.json();
-      setUsers(data.users || []);
+      setUsers(data.data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
       addToast('Failed to fetch users', 'error');
@@ -162,7 +162,7 @@ export default function AdminPage() {
       const response = await fetch('/api/organizations');
       if (!response.ok) throw new Error('Failed to fetch organizations');
       const data = await response.json();
-      setOrganizations(data.organizations || []);
+      setOrganizations(data.data || []);
     } catch (error) {
       console.error('Error fetching organizations:', error);
       addToast('Failed to fetch organizations', 'error');
@@ -181,7 +181,7 @@ export default function AdminPage() {
       );
       if (!response.ok) throw new Error('Failed to fetch audit logs');
       const data = await response.json();
-      setAuditLogs(data.logs || []);
+      setAuditLogs(data.data || []);
     } catch (error) {
       console.error('Error fetching audit logs:', error);
       addToast('Failed to fetch audit logs', 'error');
@@ -280,7 +280,7 @@ export default function AdminPage() {
       }
 
       const data = await response.json();
-      setOrganizations((prev) => [data.organization, ...prev]);
+      setOrganizations((prev) => [data.data, ...prev]);
       setShowOrgModal(false);
       setNewOrgForm({ name: '', slug: '', industry: '' });
       addToast('Organization created successfully', 'success');
