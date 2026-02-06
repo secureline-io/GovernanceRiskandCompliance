@@ -185,8 +185,8 @@ export default function Overview() {
   );
 }
 
-function StatCard({ title, value, change, trend, icon, color }: any) {
-  const colorClasses = {
+function StatCard({ title, value, change, trend, icon, color }: { title: string; value: string | number; change: string; trend: 'up' | 'down' | 'neutral'; icon: React.ReactNode; color: 'green' | 'yellow' | 'red' | 'blue' }) {
+  const colorClasses: Record<string, string> = {
     green: 'bg-green-50 text-green-600',
     yellow: 'bg-yellow-50 text-yellow-600',
     red: 'bg-red-50 text-red-600',
@@ -196,7 +196,7 @@ function StatCard({ title, value, change, trend, icon, color }: any) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-4">
-        <div className={`w-12 h-12 rounded-lg ${colorClasses[color]} flex items-center justify-center text-2xl`}>
+        <div className={`w-12 h-12 rounded-lg ${colorClasses[color] || colorClasses.blue} flex items-center justify-center text-2xl`}>
           {icon}
         </div>
         <span className={`text-sm font-medium ${
@@ -211,8 +211,8 @@ function StatCard({ title, value, change, trend, icon, color }: any) {
   );
 }
 
-function ComplianceBar({ label, percentage, color }: any) {
-  const colorClasses = {
+function ComplianceBar({ label, percentage, color }: { label: string; percentage: number; color: 'green' | 'blue' | 'purple' | 'orange' }) {
+  const colorClasses: Record<string, string> = {
     green: 'bg-green-500',
     blue: 'bg-blue-500',
     purple: 'bg-purple-500',
@@ -227,7 +227,7 @@ function ComplianceBar({ label, percentage, color }: any) {
       </div>
       <div className="w-full bg-gray-200 rounded-full h-2">
         <div
-          className={`${colorClasses[color]} h-2 rounded-full transition-all duration-500`}
+          className={`${colorClasses[color] || colorClasses.blue} h-2 rounded-full transition-all duration-500`}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -235,8 +235,8 @@ function ComplianceBar({ label, percentage, color }: any) {
   );
 }
 
-function FindingItem({ severity, title, resource, time }: any) {
-  const severityColors = {
+function FindingItem({ severity, title, resource, time }: { severity: 'critical' | 'high' | 'medium' | 'low'; title: string; resource: string; time: string }) {
+  const severityColors: Record<string, string> = {
     critical: 'bg-purple-100 text-purple-800',
     high: 'bg-red-100 text-red-800',
     medium: 'bg-yellow-100 text-yellow-800',
@@ -245,7 +245,7 @@ function FindingItem({ severity, title, resource, time }: any) {
 
   return (
     <div className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
-      <span className={`px-2 py-1 rounded text-xs font-medium ${severityColors[severity]}`}>
+      <span className={`px-2 py-1 rounded text-xs font-medium ${severityColors[severity] || severityColors.medium}`}>
         {severity.toUpperCase()}
       </span>
       <div className="flex-1 min-w-0">
@@ -265,8 +265,8 @@ function getRiskColor(value: number): string {
   return 'bg-green-200 text-gray-900';
 }
 
-function TaskItem({ title, dueDate, priority, assignee }: any) {
-  const priorityColors = {
+function TaskItem({ title, dueDate, priority, assignee }: { title: string; dueDate: string; priority: 'high' | 'medium' | 'low'; assignee: string }) {
+  const priorityColors: Record<string, string> = {
     high: 'text-red-600',
     medium: 'text-yellow-600',
     low: 'text-green-600',
@@ -281,7 +281,7 @@ function TaskItem({ title, dueDate, priority, assignee }: any) {
           {assignee} • Due {dueDate}
         </p>
       </div>
-      <span className={`text-xs font-medium ${priorityColors[priority]}`}>
+      <span className={`text-xs font-medium ${priorityColors[priority] || priorityColors.medium}`}>
         {priority.toUpperCase()}
       </span>
     </div>

@@ -1,311 +1,458 @@
 'use client';
 
-import { useState } from 'react';
-import { FileCheck, Plus, Filter, CheckCircle2, Clock, AlertCircle, Eye, Edit, Send } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  FileText, Plus, Download, Search, AlertTriangle, RefreshCw,
+  CheckCircle2, Clock, AlertCircle, Eye
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { exportToCSV } from '@/lib/export';
 
-// Mock data
-const policies = [
-  {
-    id: '1',
-    title: 'Information Security Policy',
-    policy_type: 'security',
-    status: 'active',
-    version: 3,
-    review_date: '2026-06-15',
-    published_at: '2025-12-01',
-    acknowledgement_stats: { total: 45, acknowledged: 42, pending: 2, overdue: 1 }
-  },
-  {
-    id: '2',
-    title: 'Acceptable Use Policy',
-    policy_type: 'acceptable_use',
-    status: 'active',
-    version: 2,
-    review_date: '2026-04-20',
-    published_at: '2025-10-15',
-    acknowledgement_stats: { total: 45, acknowledged: 45, pending: 0, overdue: 0 }
-  },
-  {
-    id: '3',
-    title: 'Data Retention Policy',
-    policy_type: 'data_retention',
-    status: 'active',
-    version: 1,
-    review_date: '2026-08-01',
-    published_at: '2025-11-20',
-    acknowledgement_stats: { total: 45, acknowledged: 40, pending: 5, overdue: 0 }
-  },
-  {
-    id: '4',
-    title: 'Incident Response Plan',
-    policy_type: 'incident_response',
-    status: 'draft',
-    version: 1,
-    review_date: null,
-    published_at: null,
-    acknowledgement_stats: { total: 0, acknowledged: 0, pending: 0, overdue: 0 }
-  },
-  {
-    id: '5',
-    title: 'Password Policy (Deprecated)',
-    policy_type: 'security',
-    status: 'archived',
-    version: 4,
-    review_date: '2025-01-15',
-    published_at: '2024-06-01',
-    acknowledgement_stats: { total: 40, acknowledged: 40, pending: 0, overdue: 0 }
-  }
-];
+const DEFAULT_ORG_ID = 'default';
 
-const statusConfig: Record<string, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
-  active: { label: 'Active', color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950', icon: CheckCircle2 },
-  draft: { label: 'Draft', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950', icon: Edit },
-  archived: { label: 'Archived', color: 'text-zinc-500', bg: 'bg-zinc-100 dark:bg-zinc-900', icon: AlertCircle }
+const statusConfig: Record<string, { label: string; color: string; bg: string; borderColor: string }> = {
+  draft: { label: 'Draft', color: 'text-slate-700', bg: 'bg-slate-50', borderColor: 'border-slate-200' },
+  active: { label: 'Active', color: 'text-sky-700', bg: 'bg-sky-50', borderColor: 'border-sky-200' },
+  published: { label: 'Published', color: 'text-emerald-700', bg: 'bg-emerald-50', borderColor: 'border-emerald-200' },
+  archived: { label: 'Archived', color: 'text-amber-700', bg: 'bg-amber-50', borderColor: 'border-amber-200' }
 };
 
-const typeConfig: Record<string, { label: string; color: string }> = {
-  security: { label: 'Security', color: 'text-blue-600' },
-  acceptable_use: { label: 'Acceptable Use', color: 'text-purple-600' },
-  data_retention: { label: 'Data Retention', color: 'text-green-600' },
-  incident_response: { label: 'Incident Response', color: 'text-red-600' },
-  access_control: { label: 'Access Control', color: 'text-amber-600' }
+const typeConfig: Record<string, { label: string }> = {
+  security: { label: 'Security' },
+  acceptable_use: { label: 'Acceptable Use' },
+  data_retention: { label: 'Data Retention' },
+  incident_response: { label: 'Incident Response' },
+  access_control: { label: 'Access Control' }
 };
+
+const SkeletonRow = () => (
+  <tr>
+    <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded animate-shimmer w-40"></div></td>
+    <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded animate-shimmer w-12"></div></td>
+    <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded animate-shimmer w-20"></div></td>
+    <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded animate-shimmer w-24"></div></td>
+    <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded animate-shimmer w-24"></div></td>
+    <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded animate-shimmer w-16"></div></td>
+    <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded animate-shimmer w-12"></div></td>
+  </tr>
+);
 
 export default function PoliciesPage() {
   const [filter, setFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newPolicy, setNewPolicy] = useState({ title: '', policy_type: 'security', content_markdown: '' });
 
-  const filteredPolicies = filter
-    ? policies.filter(p => p.status === filter)
-    : policies;
+  const fetchPolicies = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/policies?org_id=${DEFAULT_ORG_ID}`);
+      const json = await res.json();
+      const data = json.data || json || [];
+      setPolicies(Array.isArray(data) ? data : []);
+    } catch { setPolicies([]); }
+    finally { setLoading(false); }
+  }, []);
 
-  const activePolicies = policies.filter(p => p.status === 'active').length;
-  const totalAcknowledgements = policies.reduce((sum, p) => sum + p.acknowledgement_stats.total, 0);
-  const completedAcknowledgements = policies.reduce((sum, p) => sum + p.acknowledgement_stats.acknowledged, 0);
-  const overdueAcknowledgements = policies.reduce((sum, p) => sum + p.acknowledgement_stats.overdue, 0);
-  const completionRate = totalAcknowledgements > 0
-    ? Math.round((completedAcknowledgements / totalAcknowledgements) * 100)
-    : 0;
+  useEffect(() => { fetchPolicies(); }, [fetchPolicies]);
+
+  const handleCreate = async () => {
+    if (!newPolicy.title) return;
+    try {
+      const res = await fetch('/api/policies', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_id: DEFAULT_ORG_ID, title: newPolicy.title, policy_type: newPolicy.policy_type, content_markdown: newPolicy.content_markdown }),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+      setShowCreateForm(false);
+      setNewPolicy({ title: '', policy_type: 'security', content_markdown: '' });
+      await fetchPolicies();
+    } catch (err: any) { alert('Error: ' + err.message); }
+  };
+
+  const handlePublish = async (policyId: string) => {
+    try {
+      const res = await fetch(`/api/policies/${policyId}/publish`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+      await fetchPolicies();
+    } catch (err: any) { alert('Error: ' + err.message); }
+  };
+
+  const handleExport = () => {
+    const exportData = policies.map(p => ({
+      Title: p.title,
+      Version: `v${p.version || 1}`,
+      Status: p.status,
+      Type: typeConfig[p.policy_type]?.label || p.policy_type,
+      'Published Date': p.published_at ? new Date(p.published_at).toLocaleDateString() : '',
+      'Last Updated': p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '',
+      'Ack Rate': p.acknowledgement_stats?.total > 0 ? Math.round((p.acknowledgement_stats.acknowledged / p.acknowledgement_stats.total) * 100) + '%' : ''
+    }));
+    exportToCSV(exportData, `policies-export-${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
+  const filteredPolicies = policies.filter(p => {
+    const matchesSearch = searchQuery === '' ||
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filter === null || p.status === filter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPolicies = policies.length;
+  const publishedPolicies = policies.filter(p => p.status === 'published').length;
+  const draftPolicies = policies.filter(p => p.status === 'draft').length;
+  const pendingAck = policies.reduce((s, p) => s + (p.acknowledgement_stats?.pending || 0), 0);
+
+  const isNeedsReview = (updatedAt: string) => {
+    if (!updatedAt) return false;
+    const updated = new Date(updatedAt);
+    const now = new Date();
+    const daysSinceUpdate = (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceUpdate >= 90;
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center h-96">
+        <RefreshCw className="w-8 h-8 animate-spin text-sky-500" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-            Policy Management
-          </h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Create, distribute, and track policy acknowledgements
-          </p>
-        </div>
-        <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-          <Plus className="h-4 w-4" />
-          Create Policy
-        </button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Active Policies</p>
-                <p className="mt-2 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-                  {activePolicies}
-                </p>
-              </div>
-              <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950">
-                <FileCheck className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Acknowledgement Rate</p>
-                <p className="mt-2 text-3xl font-bold text-green-600">{completionRate}%</p>
-              </div>
-              <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Pending</p>
-                <p className="mt-2 text-3xl font-bold text-amber-600">
-                  {policies.reduce((sum, p) => sum + p.acknowledgement_stats.pending, 0)}
-                </p>
-              </div>
-              <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-950">
-                <Clock className="h-6 w-6 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Overdue</p>
-                <p className="mt-2 text-3xl font-bold text-red-600">{overdueAcknowledgements}</p>
-              </div>
-              <div className="rounded-lg bg-red-50 p-3 dark:bg-red-950">
-                <AlertCircle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <button className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
-          <Filter className="h-4 w-4" />
-          Filter
-        </button>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setFilter(null)}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-sm font-medium',
-              filter === null
-                ? 'bg-blue-50 text-blue-600 dark:bg-blue-950'
-                : 'text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-900'
-            )}
-          >
-            All ({policies.length})
-          </button>
-          {Object.entries(statusConfig).map(([key, config]) => (
+    <div className="min-h-screen bg-slate-50/50">
+      <div className="space-y-6 p-8 max-w-7xl mx-auto">
+        {/* PAGE HEADER */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Policy Management</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Total: <span className="font-semibold text-slate-700">{totalPolicies}</span> policy{totalPolicies !== 1 ? 'ies' : ''}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
             <button
-              key={key}
-              onClick={() => setFilter(key)}
+              onClick={handleExport}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all active:scale-95 shadow-sm flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium bg-sky-500 hover:bg-sky-600 text-white shadow-sm shadow-sky-500/25 transition-all active:scale-95 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              New Policy
+            </button>
+          </div>
+        </div>
+
+        {/* STATS ROW */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fadeIn">
+          {/* Total Policies */}
+          <div className="rounded-xl border border-slate-200/60 bg-white p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-50 text-slate-500">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Total Policies</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{totalPolicies}</p>
+            </div>
+          </div>
+
+          {/* Published */}
+          <div className="rounded-xl border border-slate-200/60 bg-white p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-500">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Published</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{publishedPolicies}</p>
+            </div>
+          </div>
+
+          {/* Draft */}
+          <div className="rounded-xl border border-slate-200/60 bg-white p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-50 text-slate-500">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Draft</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{draftPolicies}</p>
+            </div>
+          </div>
+
+          {/* Pending Acknowledgements */}
+          <div className="rounded-xl border border-slate-200/60 bg-white p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-50 text-amber-500">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Pending Acknowledgements</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{pendingAck}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* INLINE CREATION FORM */}
+        {showCreateForm && (
+          <div className="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm animate-fadeIn">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">New Policy</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-2">Policy Title *</label>
+                <input
+                  type="text"
+                  placeholder="Enter policy title..."
+                  value={newPolicy.title}
+                  onChange={e => setNewPolicy(p => ({ ...p, title: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-2">Policy Type</label>
+                <select
+                  value={newPolicy.policy_type}
+                  onChange={e => setNewPolicy(p => ({ ...p, policy_type: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                >
+                  <option value="security">Security</option>
+                  <option value="acceptable_use">Acceptable Use</option>
+                  <option value="data_retention">Data Retention</option>
+                  <option value="incident_response">Incident Response</option>
+                  <option value="access_control">Access Control</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-2">Content (Markdown)</label>
+                <textarea
+                  rows={6}
+                  placeholder="Enter policy content in markdown format..."
+                  value={newPolicy.content_markdown}
+                  onChange={e => setNewPolicy(p => ({ ...p, content_markdown: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreate}
+                  className="rounded-xl bg-sky-500 hover:bg-sky-600 px-4 py-2.5 text-sm font-medium text-white transition-all active:scale-95"
+                >
+                  Create Policy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FILTER BAR */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="relative w-full sm:w-auto sm:max-w-sm">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by title..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pl-10 text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFilter(null)}
               className={cn(
-                'rounded-lg px-3 py-1.5 text-sm font-medium',
-                filter === key
-                  ? config.bg + ' ' + config.color
-                  : 'text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-900'
+                'px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all',
+                filter === null
+                  ? 'bg-sky-500 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               )}
             >
-              {config.label} ({policies.filter(p => p.status === key).length})
+              All
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Policies List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Policies</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {filteredPolicies.map((policy) => {
-              const status = statusConfig[policy.status];
-              const type = typeConfig[policy.policy_type] || { label: policy.policy_type, color: 'text-zinc-600' };
-              const StatusIcon = status.icon;
-              const ackRate = policy.acknowledgement_stats.total > 0
-                ? Math.round((policy.acknowledgement_stats.acknowledged / policy.acknowledgement_stats.total) * 100)
-                : 0;
-
+            {['draft', 'active', 'published', 'archived'].map(key => {
+              const config = statusConfig[key];
+              const count = policies.filter(p => p.status === key).length;
               return (
-                <div
-                  key={policy.id}
-                  className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white p-4 transition-all hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all',
+                    filter === key
+                      ? 'bg-sky-500 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  )}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      'rounded-lg p-2',
-                      status.bg
-                    )}>
-                      <StatusIcon className={cn('h-5 w-5', status.color)} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
-                          {policy.title}
-                        </h3>
-                        <span className={cn(
-                          'rounded-full px-2 py-0.5 text-xs font-medium',
-                          status.bg,
-                          status.color
-                        )}>
-                          {status.label}
-                        </span>
-                        <span className="text-xs text-zinc-500">v{policy.version}</span>
-                      </div>
-                      <div className="mt-1 flex items-center gap-4 text-sm text-zinc-500">
-                        <span className={type.color}>{type.label}</span>
-                        {policy.published_at && (
-                          <span>
-                            Published: {new Date(policy.published_at).toLocaleDateString()}
-                          </span>
-                        )}
-                        {policy.review_date && (
-                          <span>
-                            Review: {new Date(policy.review_date).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6">
-                    {policy.status === 'active' && (
-                      <div className="text-center">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-32 rounded-full bg-zinc-100 dark:bg-zinc-800">
-                            <div
-                              className={cn(
-                                'h-2 rounded-full',
-                                ackRate === 100 ? 'bg-green-500' :
-                                ackRate >= 80 ? 'bg-amber-500' : 'bg-red-500'
-                              )}
-                              style={{ width: `${ackRate}%` }}
-                            />
-                          </div>
-                          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                            {ackRate}%
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {policy.acknowledgement_stats.acknowledged}/{policy.acknowledgement_stats.total} acknowledged
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                      <button className="rounded-lg p-2 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button className="rounded-lg p-2 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      {policy.status === 'draft' && (
-                        <button className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
-                          <Send className="h-3 w-3" />
-                          Publish
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  {config.label}
+                </button>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* DATA TABLE */}
+        <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200">
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Title</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Version</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ack Rate</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Updated</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Review</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...Array(5)].map((_, i) => <SkeletonRow key={i} />)}
+                </tbody>
+              </table>
+            </div>
+          ) : filteredPolicies.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-6">
+              <div className="w-16 h-16 rounded-2xl bg-slate-200 flex items-center justify-center mb-4">
+                <FileText className="w-8 h-8 text-slate-400" />
+              </div>
+              <p className="text-lg font-semibold text-slate-900">
+                {totalPolicies === 0 ? 'No policies yet' : 'No policies match your filters'}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                {totalPolicies === 0
+                  ? 'Create your first security policy to start.'
+                  : 'Try adjusting your search or filters'}
+              </p>
+              {totalPolicies === 0 && (
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="mt-6 rounded-xl px-4 py-2.5 text-sm font-medium bg-sky-500 hover:bg-sky-600 text-white shadow-sm shadow-sky-500/25 transition-all active:scale-95 flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create First Policy
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200">
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Title</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Version</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ack Rate</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Updated</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Review</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPolicies.map(policy => {
+                    const status = statusConfig[policy.status] || statusConfig.draft;
+                    const ackStats = policy.acknowledgement_stats || {};
+                    const ackRate = ackStats.total > 0 ? Math.round((ackStats.acknowledged / ackStats.total) * 100) : 0;
+                    const needsReview = policy.updated_at && isNeedsReview(policy.updated_at);
+                    const lastUpdated = new Date(policy.updated_at || policy.created_at);
+
+                    return (
+                      <tr key={policy.id} className="border-b border-slate-100 hover:bg-sky-50/30 transition-colors cursor-pointer">
+                        <td className="px-5 py-4">
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">{policy.title}</p>
+                            {typeConfig[policy.policy_type] && (
+                              <p className="text-xs text-slate-500 mt-0.5">{typeConfig[policy.policy_type].label}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded-md text-slate-700">
+                            v{policy.version || 1}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium border', status.bg, status.color, status.borderColor)}>
+                            {status.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          {ackStats.total > 0 ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                                <div
+                                  className={cn(
+                                    'h-full rounded-full transition-all',
+                                    ackRate === 100 ? 'bg-emerald-500' : ackRate >= 80 ? 'bg-amber-500' : 'bg-red-500'
+                                  )}
+                                  style={{ width: `${ackRate}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-medium text-slate-600 w-10">{ackRate}%</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-sm text-slate-600">
+                          {lastUpdated.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </td>
+                        <td className="px-5 py-4">
+                          {needsReview ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                              <AlertTriangle className="h-3 w-3" />
+                              Review
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2">
+                            {policy.status === 'draft' && (
+                              <button
+                                onClick={() => handlePublish(policy.id)}
+                                className="text-xs font-medium text-sky-600 hover:text-sky-700 transition-colors bg-sky-50 hover:bg-sky-100 px-2.5 py-1.5 rounded-lg"
+                              >
+                                Publish
+                              </button>
+                            )}
+                            {policy.status !== 'draft' && (
+                              <button
+                                onClick={() => {}}
+                                className="text-xs font-medium text-slate-600 hover:text-slate-700 transition-colors"
+                              >
+                                View
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
