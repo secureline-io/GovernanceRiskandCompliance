@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, getWriteClient } from '@/lib/supabase/server';
 
 // GET /api/vendors/[id]/assessments - List assessments for a vendor
 export async function GET(
@@ -34,14 +34,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const { client: supabase, user } = await getWriteClient();
     const { id: vendorId } = await params;
     const body = await request.json();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const {
       assessment_type,
@@ -60,7 +55,7 @@ export async function POST(
         summary,
         documents,
         status: 'in_progress',
-        assessor_id: user.id
+        assessor_id: user?.id || null
       })
       .select()
       .single();
@@ -95,14 +90,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const { client: supabase, user } = await getWriteClient();
     const { id: vendorId } = await params;
     const body = await request.json();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { assessment_id, score, risk_rating, summary, issues_count, status } = body;
 

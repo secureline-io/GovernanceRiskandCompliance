@@ -41,6 +41,30 @@ export const supabaseAdmin = supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null
 
+// Creates an admin Supabase client (bypasses RLS). Used for write operations
+// when no authenticated user session exists (dev mode / no login flow).
+export function createAdminSupabaseClient() {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for write operations without auth');
+  }
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
+
+// Returns an authenticated client if user session exists, otherwise falls back
+// to admin client for development. Also returns user (or null).
+export async function getWriteClient() {
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    return { client: supabase, user };
+  }
+
+  // Fall back to admin client in dev mode (no login flow)
+  const adminClient = supabaseAdmin || createAdminSupabaseClient();
+  return { client: adminClient, user: null };
+}
+
 // Helper functions for common server-side operations
 export async function getFrameworks() {
   const client = supabaseAdmin || await createServerSupabaseClient()

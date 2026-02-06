@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, getWriteClient } from '@/lib/supabase/server';
 
 // GET /api/risks/[id]/treatments - List treatments for a risk
 export async function GET(
@@ -34,14 +34,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const { client: supabase, user } = await getWriteClient();
     const { id: riskId } = await params;
     const body = await request.json();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const {
       action,
@@ -66,7 +61,7 @@ export async function POST(
         description,
         due_date,
         cost_estimate,
-        responsible_user_id: responsible_user_id || user.id,
+        responsible_user_id: responsible_user_id || user?.id || null,
         status: 'not_started'
       })
       .select()

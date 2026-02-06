@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFrameworks, createServerSupabaseClient } from '@/lib/supabase/server';
+import { getFrameworks, createServerSupabaseClient, getWriteClient } from '@/lib/supabase/server';
 
 // GET /api/frameworks - List all frameworks
 export async function GET() {
@@ -16,13 +16,8 @@ export async function GET() {
 // POST /api/frameworks - Create a custom framework
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const { client: supabase, user } = await getWriteClient();
     const body = await request.json();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { code, name, description, category } = body;
 
@@ -41,7 +36,7 @@ export async function POST(request: NextRequest) {
         description,
         category,
         is_custom: true,
-        created_by: user.id
+        created_by: user?.id || null
       })
       .select()
       .single();

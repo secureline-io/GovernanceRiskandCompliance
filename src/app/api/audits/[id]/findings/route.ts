@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, getWriteClient } from '@/lib/supabase/server';
 
 // GET /api/audits/[id]/findings - list findings for audit
 export async function GET(
@@ -39,11 +39,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { client: supabase, user } = await getWriteClient();
 
     const { id } = await params;
     const body = await request.json();

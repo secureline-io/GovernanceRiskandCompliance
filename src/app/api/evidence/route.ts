@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, getWriteClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 
 // GET /api/evidence - List evidence for an organization
@@ -65,13 +65,8 @@ export async function GET(request: NextRequest) {
 // POST /api/evidence - Create new evidence (append-only)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const { client: supabase, user } = await getWriteClient();
     const body = await request.json();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const {
       org_id,
@@ -112,7 +107,7 @@ export async function POST(request: NextRequest) {
         file_type,
         file_size_bytes,
         integration_id,
-        collector_user_id: user.id,
+        collector_user_id: user?.id || null,
         audit_notes,
         collected_at: new Date().toISOString()
       })
@@ -136,7 +131,7 @@ export async function POST(request: NextRequest) {
       const links = control_ids.map(controlId => ({
         evidence_id: evidence.id,
         control_id: controlId,
-        linked_by: user.id
+        linked_by: user?.id || null
       }));
 
       const { error: linkError } = await supabase
@@ -150,13 +145,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Log audit event
-    await supabase.rpc('log_audit_event', {
-      p_org_id: org_id,
-      p_action: 'create',
-      p_resource_type: 'evidence',
-      p_resource_id: evidence.id,
-      p_changes: { new: evidence }
-    });
+    try {
+      await supabase.rpc('log_audit_event', {
+        p_org_id: org_id,
+        p_action: 'create',
+        p_resource_type: 'evidence',
+        p_resource_id: evidence.id,
+        p_changes: { new: evidence }
+      });
+    } catch (auditError) {
+      console.error('Error logging audit event:', auditError);
+      // Don't fail the request if audit logging fails
+    }
 
     return NextResponse.json({ data: evidence }, { status: 201 });
   } catch (error) {

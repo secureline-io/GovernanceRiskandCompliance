@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, getWriteClient } from '@/lib/supabase/server';
 
 // GET /api/frameworks/[id] - Get framework details with requirements
 export async function GET(
@@ -50,14 +50,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const { client: supabase, user } = await getWriteClient();
     const { id } = await params;
     const body = await request.json();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Only allow updating custom frameworks
     const { data: existing } = await supabase
@@ -98,13 +93,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const { client: supabase, user } = await getWriteClient();
     const { id } = await params;
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Only allow deleting custom frameworks
     const { data: existing } = await supabase

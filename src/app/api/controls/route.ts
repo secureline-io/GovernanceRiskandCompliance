@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getControls } from '@/lib/supabase/server';
+import { getWriteClient, getControls } from '@/lib/supabase/server';
 
 export async function GET(request: Request) {
   try {
@@ -26,8 +25,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { client: supabase, user } = await getWriteClient();
     
     const body = await request.json();
     const { org_id, code, name, description, category, control_type, control_nature, frequency, status, owner_id, implementation_details } = body;
@@ -49,7 +47,7 @@ export async function POST(request: Request) {
         category: category || null,
         control_type: control_type || 'preventive',
         control_nature: control_nature || 'manual',
-        frequency: frequency || null,
+        default_frequency: frequency || null,
         status: status || 'not_tested',
         owner_id: owner_id || user?.id || null,
         implementation_details: implementation_details || null,

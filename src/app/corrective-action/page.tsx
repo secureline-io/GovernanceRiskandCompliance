@@ -39,8 +39,9 @@ export default function CorrectiveActionPage() {
       try {
         const res = await fetch(`/api/findings?org_id=${DEFAULT_ORG_ID}`);
         if (res.ok) {
-          const data = await res.json();
-          const filtered = data.filter((f: Finding) =>
+          const json = await res.json();
+          const items = json.data || json || [];
+          const filtered = items.filter((f: Finding) =>
             f.status === 'open' || f.status === 'in_progress'
           );
           setFindings(filtered);

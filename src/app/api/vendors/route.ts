@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, getWriteClient } from '@/lib/supabase/server';
 
 // GET /api/vendors - List vendors for an organization
 export async function GET(request: NextRequest) {
@@ -55,13 +55,8 @@ export async function GET(request: NextRequest) {
 // POST /api/vendors - Create a new vendor
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const { client: supabase, user } = await getWriteClient();
     const body = await request.json();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const {
       org_id,
@@ -109,13 +104,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Log audit event
-    await supabase.rpc('log_audit_event', {
-      p_org_id: org_id,
-      p_action: 'create',
-      p_resource_type: 'vendors',
-      p_resource_id: vendor.id,
-      p_changes: { new: vendor }
-    });
+    try {
+      await supabase.rpc('log_audit_event', {
+        p_org_id: org_id,
+        p_action: 'create',
+        p_resource_type: 'vendors',
+        p_resource_id: vendor.id,
+        p_changes: { new: vendor }
+      });
+    } catch (auditError) {
+      console.error('Failed to log audit event:', auditError);
+    }
 
     return NextResponse.json({ data: vendor }, { status: 201 });
   } catch (error) {

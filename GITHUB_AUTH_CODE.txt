@@ -1,0 +1,11 @@
+GitHub Device Authentication
+
+Your one-time code: 1200-C344
+
+Steps:
+1. Browser will open to: https://github.com/login/device
+2. Enter this code: 1200-C344
+3. Click "Authorize GitHub CLI"
+4. Come back here - the script will continue automatically
+
+This code expires in 15 minutes.

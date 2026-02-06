@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getRisks } from '@/lib/supabase/server';
+import { getWriteClient, getRisks } from '@/lib/supabase/server';
 
 export async function GET(request: Request) {
   try {
@@ -26,8 +25,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { client: supabase, user } = await getWriteClient();
     
     const body = await request.json();
     const { org_id, title, description, category, risk_source, inherent_likelihood, inherent_impact, risk_appetite, owner_id, target_resolution_date } = body;
@@ -41,7 +39,6 @@ export async function POST(request: Request) {
 
     const likelihood = inherent_likelihood || 3;
     const impact = inherent_impact || 3;
-    const inherent_risk_score = likelihood * impact;
 
     const { data, error } = await supabase
       .from('risks')
@@ -53,7 +50,6 @@ export async function POST(request: Request) {
         risk_source: risk_source || null,
         inherent_likelihood: likelihood,
         inherent_impact: impact,
-        inherent_risk_score,
         risk_response: risk_appetite || null,
         status: 'open',
         owner_id: owner_id || user?.id || null,
