@@ -115,7 +115,12 @@ export default function VendorsPage() {
         }),
       });
       if (res.ok) {
-        await handleViewAssessment(selectedVendor);
+        // Find the vendor from the list instead of relying on selectedVendor state
+        // which could become null if the modal closes during the API call
+        const vendor = vendors.find(v => v.id === vendorId);
+        if (vendor) {
+          await handleViewAssessment(vendor);
+        }
       }
     } catch (error) {
       console.error('Failed to add assessment:', error);
