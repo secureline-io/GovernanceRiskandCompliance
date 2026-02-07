@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM public.ecr.aws/docker/library/node:20-alpine AS builder
 
 LABEL maintainer="GRC Platform Team"
 LABEL description="GRC Platform Backend - Production Build"
@@ -16,7 +16,7 @@ RUN npm ci --production
 COPY . .
 
 # Production stage
-FROM node:20-alpine
+FROM public.ecr.aws/docker/library/node:20-alpine
 
 LABEL maintainer="GRC Platform Team"
 LABEL description="GRC Platform Backend - Production Runtime"
