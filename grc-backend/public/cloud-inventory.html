@@ -1,0 +1,2440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Asset Inventory - GRC Automation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --dark-gray: #374151;
+            --medium-gray: #6b7280;
+            --light-gray: #f3f4f6;
+            --border-color: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+            background: white;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* SIDEBAR NAVIGATION */
+        .sidebar {
+            width: 260px;
+            background: #ffffff;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+        }
+
+        .nav-section {
+            margin-bottom: 30px;
+        }
+
+        .nav-section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--medium-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            padding: 0 10px;
+        }
+
+        .nav-item {
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-item:hover {
+            background: var(--light-gray);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .nav-item::before {
+            content: "";
+            width: 4px;
+            height: 4px;
+            background: currentColor;
+            border-radius: 50%;
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--light-gray);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #92400e;
+        }
+
+        .badge-info {
+            background: rgba(59, 130, 246, 0.1);
+            color: #1e40af;
+        }
+
+        .badge-gray {
+            background: rgba(107, 114, 128, 0.1);
+            color: #374151;
+        }
+
+        .badge-primary {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+        }
+
+        /* CARDS */
+        .card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        /* STATS ROW */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .stat-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .stat-badge {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        /* CHARTS ROW */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        /* TABLE STYLES */
+        .table-container {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .table-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            background: #f9fafb;
+        }
+
+        .table-header-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .table-header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table thead {
+            background: #f9fafb;
+        }
+
+        table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        table th:hover {
+            background: #f3f4f6;
+        }
+
+        table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .table-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        /* MODAL */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        .modal.wide {
+            max-width: 800px;
+        }
+
+        .modal-header {
+            padding: 24px 24px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .modal-content {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* WIZARD */
+        .wizard-progress {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .wizard-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+
+        .wizard-step::after {
+            content: "";
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            right: -50%;
+            height: 2px;
+            background: var(--border-color);
+            z-index: 0;
+        }
+
+        .wizard-step:last-child::after {
+            display: none;
+        }
+
+        .wizard-step.active::after {
+            background: var(--primary);
+        }
+
+        .wizard-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--light-gray);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin: 0 auto 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .wizard-step.active .wizard-number {
+            background: var(--primary);
+            color: white;
+        }
+
+        .wizard-step.completed .wizard-number {
+            background: var(--success);
+            color: white;
+        }
+
+        .wizard-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .wizard-step.active .wizard-label {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* FORMS */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-input:disabled,
+        .form-select:disabled {
+            background: var(--light-gray);
+            color: var(--text-secondary);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-help {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* FILTER BAR */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .filter-row.full {
+            grid-template-columns: 1fr;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            gap: 0;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* TIMELINE */
+        .timeline {
+            position: relative;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .timeline-item:last-child {
+            border-bottom: none;
+        }
+
+        .timeline-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            margin-top: 6px;
+            flex-shrink: 0;
+        }
+
+        .timeline-content {
+            flex: 1;
+        }
+
+        .timeline-date {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .timeline-text {
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-top: 4px;
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--light-gray);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* GAUGE CHART */
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .gauge-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .gauge-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1400px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                flex-direction: row;
+                overflow-x: auto;
+                height: auto;
+                padding: 12px 20px;
+            }
+
+            .nav-section {
+                margin-bottom: 0;
+                margin-right: 20px;
+            }
+
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* UTILITY */
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        .gap-12 {
+            gap: 12px;
+        }
+
+        .d-flex {
+            display: flex;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        .status-dot.active {
+            background: var(--success);
+        }
+
+        .status-dot.failed {
+            background: var(--danger);
+        }
+
+        .status-dot.pending {
+            background: var(--warning);
+        }
+
+        .status-dot.unknown {
+            background: var(--medium-gray);
+        }
+
+        /* INTEGRATION CARDS */
+        .integration-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .integration-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .integration-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .integration-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .integration-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .integration-info {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .integration-info-item {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-secondary);
+        }
+
+        .integration-regions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .integration-region-tag {
+            background: var(--light-gray);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .integration-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* PROVIDER SELECTOR */
+        .provider-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .provider-card {
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .provider-card:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.02);
+        }
+
+        .provider-card.selected {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .provider-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .provider-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .provider-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .provider-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* COLLAPSIBLE */
+        .collapsible {
+            background: var(--light-gray);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+
+        .collapsible:hover {
+            background: #e5e7eb;
+        }
+
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+        }
+
+        .collapsible-icon {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .collapsible.open .collapsible-icon {
+            transform: rotate(180deg);
+        }
+
+        .collapsible-content {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .collapsible.open .collapsible-content {
+            display: block;
+        }
+
+        .code-block {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: "Monaco", "Menlo", monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 12px 0;
+            position: relative;
+        }
+
+        .code-copy {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .code-copy:hover {
+            background: var(--primary-dark);
+        }
+
+        /* STEP CARD */
+        .step-card {
+            background: var(--light-gray);
+            border-left: 4px solid var(--primary);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 4px;
+        }
+
+        .step-number {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-right: 8px;
+        }
+
+        /* TREE STRUCTURE */
+        .tree-node {
+            margin-left: 20px;
+            padding: 8px 0;
+        }
+
+        .tree-node-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .tree-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- SIDEBAR NAVIGATION -->
+        <div class="sidebar">
+            <div class="logo">GRC Automation</div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Cloud</div>
+                <div class="nav-item active" onclick="switchView('overview')">Overview</div>
+                <div class="nav-item" onclick="switchView('integrations')">Integrations</div>
+                <div class="nav-item" onclick="switchView('inventory')">Asset Inventory</div>
+                <div class="nav-item" onclick="switchView('rules')">Classification Rules</div>
+                <div class="nav-item" onclick="switchView('history')">Sync History</div>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <div class="header" id="header">
+                <div class="header-title" id="headerTitle">Cloud Overview</div>
+                <div class="header-actions" id="headerActions"></div>
+            </div>
+
+            <div class="content-area">
+                <!-- VIEW 1: CLOUD OVERVIEW DASHBOARD -->
+                <div id="overview" class="view active">
+                    <!-- STATS ROW -->
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Assets</div>
+                            <div class="stat-value">187</div>
+                            <div class="stat-badge">+12 this week</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Connected Accounts</div>
+                            <div class="stat-value">2</div>
+                            <div style="font-size: 12px; margin-top: 8px;">
+                                <span class="badge badge-primary">AWS</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Internet Exposed</div>
+                            <div class="stat-value" style="color: var(--danger);">14</div>
+                            <div class="stat-meta">Requires attention</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Classification Coverage</div>
+                            <div class="gauge-container">
+                                <div class="gauge-value">78%</div>
+                                <canvas id="gaugeChart" width="120" height="120" style="max-width: 100%;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CHARTS ROW 1 -->
+                    <div class="charts-row">
+                        <div class="chart-container">
+                            <div class="chart-title">Assets by Service</div>
+                            <canvas id="serviceChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-title">Assets by Environment</div>
+                            <canvas id="environmentChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- CHARTS ROW 2 -->
+                    <div class="charts-row">
+                        <div class="chart-container">
+                            <div class="chart-title">Assets by Criticality</div>
+                            <canvas id="criticalityChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-title">Discovery Timeline (30 Days)</div>
+                            <canvas id="timelineChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- RECENT ACTIVITY -->
+                    <div class="table-container" style="margin-bottom: 30px;">
+                        <div class="table-header">
+                            <div class="table-header-title">Recent Sync Activity</div>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Integration</th>
+                                    <th>Status</th>
+                                    <th>Assets Found</th>
+                                    <th>Duration</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Production AWS</td>
+                                    <td><span class="badge badge-success">Completed</span></td>
+                                    <td>142</td>
+                                    <td>4m 32s</td>
+                                    <td>Feb 7, 10:00</td>
+                                </tr>
+                                <tr>
+                                    <td>Staging AWS</td>
+                                    <td><span class="badge badge-success">Completed</span></td>
+                                    <td>45</td>
+                                    <td>1m 15s</td>
+                                    <td>Feb 7, 10:00</td>
+                                </tr>
+                                <tr>
+                                    <td>Production AWS</td>
+                                    <td><span class="badge badge-success">Completed</span></td>
+                                    <td>139</td>
+                                    <td>4m 28s</td>
+                                    <td>Feb 6, 15:30</td>
+                                </tr>
+                                <tr>
+                                    <td>Production AWS</td>
+                                    <td><span class="badge badge-danger">Failed</span></td>
+                                    <td>0</td>
+                                    <td>0m 05s</td>
+                                    <td>Feb 6, 10:00</td>
+                                </tr>
+                                <tr>
+                                    <td>Staging AWS</td>
+                                    <td><span class="badge badge-success">Completed</span></td>
+                                    <td>45</td>
+                                    <td>1m 18s</td>
+                                    <td>Feb 6, 10:00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- TOP EXPOSED ASSETS -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <div class="table-header-title">Top Internet-Exposed Assets</div>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Service</th>
+                                    <th>Region</th>
+                                    <th>Criticality</th>
+                                    <th>Account</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>web-server-prod-01</td>
+                                    <td>EC2</td>
+                                    <td>us-east-1</td>
+                                    <td><span class="badge" style="background: rgba(239, 68, 68, 0.1); color: #991b1b;">Critical</span></td>
+                                    <td>Production</td>
+                                </tr>
+                                <tr>
+                                    <td>api-server-prod-02</td>
+                                    <td>EC2</td>
+                                    <td>us-east-1</td>
+                                    <td><span class="badge" style="background: rgba(239, 68, 68, 0.1); color: #991b1b;">Critical</span></td>
+                                    <td>Production</td>
+                                </tr>
+                                <tr>
+                                    <td>user-uploads-public</td>
+                                    <td>S3</td>
+                                    <td>global</td>
+                                    <td><span class="badge badge-warning">High</span></td>
+                                    <td>Production</td>
+                                </tr>
+                                <tr>
+                                    <td>prod-alb</td>
+                                    <td>ELB</td>
+                                    <td>us-east-1</td>
+                                    <td><span class="badge badge-warning">High</span></td>
+                                    <td>Production</td>
+                                </tr>
+                                <tr>
+                                    <td>staging-web-sg</td>
+                                    <td>EC2</td>
+                                    <td>us-east-1</td>
+                                    <td><span class="badge badge-warning">High</span></td>
+                                    <td>Staging</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- VIEW 2: INTEGRATIONS -->
+                <div id="integrations" class="view">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                        <h1>Cloud Integrations</h1>
+                        <button class="btn btn-primary" onclick="openAddAccountModal()">+ Add Cloud Account</button>
+                    </div>
+
+                    <!-- INTEGRATION CARDS -->
+                    <div class="integration-cards">
+                        <div class="integration-card">
+                            <div class="integration-header">
+                                <div>
+                                    <div style="font-size: 24px; margin-bottom: 8px;">☁️</div>
+                                    <div class="integration-title">Production</div>
+                                    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">AWS (123456789012)</div>
+                                </div>
+                                <span class="badge badge-success">Connected</span>
+                            </div>
+                            <div class="integration-info">
+                                <div class="integration-info-item">
+                                    <span>Last sync</span>
+                                    <strong>2 hours ago</strong>
+                                </div>
+                                <div class="integration-info-item">
+                                    <span>Assets</span>
+                                    <strong>142</strong>
+                                </div>
+                            </div>
+                            <div class="integration-regions">
+                                <div class="integration-region-tag">us-east-1</div>
+                                <div class="integration-region-tag">us-west-2</div>
+                                <div class="integration-region-tag">eu-west-1</div>
+                            </div>
+                            <div class="integration-actions">
+                                <button class="btn btn-small btn-secondary">Test Connection</button>
+                                <button class="btn btn-small btn-secondary">Sync Now</button>
+                                <button class="btn btn-small btn-secondary">Edit</button>
+                                <button class="btn btn-small btn-danger">Delete</button>
+                            </div>
+                        </div>
+
+                        <div class="integration-card">
+                            <div class="integration-header">
+                                <div>
+                                    <div style="font-size: 24px; margin-bottom: 8px;">☁️</div>
+                                    <div class="integration-title">Staging</div>
+                                    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">AWS (987654321098)</div>
+                                </div>
+                                <span class="badge badge-success">Connected</span>
+                            </div>
+                            <div class="integration-info">
+                                <div class="integration-info-item">
+                                    <span>Last sync</span>
+                                    <strong>5 hours ago</strong>
+                                </div>
+                                <div class="integration-info-item">
+                                    <span>Assets</span>
+                                    <strong>45</strong>
+                                </div>
+                            </div>
+                            <div class="integration-regions">
+                                <div class="integration-region-tag">us-east-1</div>
+                            </div>
+                            <div class="integration-actions">
+                                <button class="btn btn-small btn-secondary">Test Connection</button>
+                                <button class="btn btn-small btn-secondary">Sync Now</button>
+                                <button class="btn btn-small btn-secondary">Edit</button>
+                                <button class="btn btn-small btn-danger">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 3: ASSET INVENTORY -->
+                <div id="inventory" class="view">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div>
+                            <h1 style="display: inline-block;">Asset Inventory <span class="badge badge-primary">187</span></h1>
+                        </div>
+                        <div class="header-actions">
+                            <span style="font-size: 13px; color: var(--text-secondary);">Last synced 2h ago</span>
+                            <button class="btn btn-primary">Sync Now</button>
+                            <button class="btn btn-secondary">Export CSV</button>
+                        </div>
+                    </div>
+
+                    <!-- FILTER BAR -->
+                    <div class="filter-bar">
+                        <div class="filter-row full" style="margin-bottom: 12px;">
+                            <input type="text" class="form-input" placeholder="Search by name, ARN, or resource ID..." id="searchInput" onkeyup="filterTable()">
+                        </div>
+                        <div class="filter-row">
+                            <select class="form-select" id="providerFilter" onchange="filterTable()">
+                                <option value="">All Providers</option>
+                                <option value="AWS">AWS</option>
+                                <option value="Azure">Azure</option>
+                                <option value="GCP">GCP</option>
+                            </select>
+                            <select class="form-select" id="accountFilter" onchange="filterTable()">
+                                <option value="">All Accounts</option>
+                                <option value="Production">Production</option>
+                                <option value="Staging">Staging</option>
+                            </select>
+                            <select class="form-select" id="regionFilter" onchange="filterTable()">
+                                <option value="">All Regions</option>
+                                <option value="us-east-1">us-east-1</option>
+                                <option value="us-west-2">us-west-2</option>
+                                <option value="eu-west-1">eu-west-1</option>
+                                <option value="global">global</option>
+                            </select>
+                            <select class="form-select" id="serviceFilter" onchange="filterTable()">
+                                <option value="">All Services</option>
+                                <option value="EC2">EC2</option>
+                                <option value="S3">S3</option>
+                                <option value="RDS">RDS</option>
+                                <option value="Lambda">Lambda</option>
+                                <option value="IAM">IAM</option>
+                                <option value="VPC">VPC</option>
+                                <option value="ELB">ELB</option>
+                                <option value="EKS">EKS</option>
+                                <option value="DynamoDB">DynamoDB</option>
+                                <option value="KMS">KMS</option>
+                            </select>
+                        </div>
+                        <div class="filter-row" style="margin-top: 12px;">
+                            <select class="form-select" id="environmentFilter" onchange="filterTable()">
+                                <option value="">All Environments</option>
+                                <option value="Production">Production</option>
+                                <option value="Staging">Staging</option>
+                                <option value="Development">Development</option>
+                                <option value="Unknown">Unknown</option>
+                            </select>
+                            <select class="form-select" id="criticalityFilter" onchange="filterTable()">
+                                <option value="">All Criticalities</option>
+                                <option value="Critical">Critical</option>
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                                <option value="Unclassified">Unclassified</option>
+                            </select>
+                            <select class="form-select" id="exposureFilter" onchange="filterTable()">
+                                <option value="">All States</option>
+                                <option value="Exposed">Exposed</option>
+                                <option value="Not Exposed">Not Exposed</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- ASSET TABLE -->
+                    <div class="table-container">
+                        <table id="assetTable">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" class="table-checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                                    <th onclick="sortTable(this)">Name</th>
+                                    <th onclick="sortTable(this)">Service</th>
+                                    <th onclick="sortTable(this)">Type</th>
+                                    <th onclick="sortTable(this)">Account</th>
+                                    <th onclick="sortTable(this)">Region</th>
+                                    <th onclick="sortTable(this)">Environment</th>
+                                    <th onclick="sortTable(this)">Owner</th>
+                                    <th onclick="sortTable(this)">Criticality</th>
+                                    <th>Exposed</th>
+                                    <th onclick="sortTable(this)">Last Seen</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assetTableBody">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- PAGINATION -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; font-size: 14px;">
+                        <div>Showing <strong id="pageInfo">1-20 of 187 assets</strong></div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-secondary btn-small">← Previous</button>
+                            <button class="btn btn-secondary btn-small">1</button>
+                            <button class="btn btn-secondary btn-small">2</button>
+                            <button class="btn btn-secondary btn-small">3</button>
+                            <span style="padding: 0 8px;">...</span>
+                            <button class="btn btn-secondary btn-small">10</button>
+                            <button class="btn btn-secondary btn-small">Next →</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 4: CLASSIFICATION RULES -->
+                <div id="rules" class="view">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                        <div>
+                            <h1>Classification Rules <span class="badge badge-primary" style="margin-left: 12px;">8 Active</span></h1>
+                        </div>
+                        <div class="header-actions">
+                            <button class="btn btn-secondary">Run All Rules</button>
+                            <button class="btn btn-primary" onclick="openAddRuleModal()">+ Add Rule</button>
+                        </div>
+                    </div>
+
+                    <!-- RULES TABLE -->
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Priority</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Conditions</th>
+                                    <th>Actions</th>
+                                    <th>Applied To</th>
+                                    <th>Status</th>
+                                    <th style="width: 80px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>10</strong></td>
+                                    <td>Production Environment</td>
+                                    <td><span class="badge badge-info">Tag Match</span></td>
+                                    <td><code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">tag:Environment = "production"</code></td>
+                                    <td>Set env: Production, criticality: High</td>
+                                    <td><strong>67 assets</strong></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td><button class="btn btn-small btn-secondary">Edit</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>20</strong></td>
+                                    <td>Staging Environment</td>
+                                    <td><span class="badge badge-info">Tag Match</span></td>
+                                    <td><code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">tag:Environment = "staging"</code></td>
+                                    <td>Set env: Staging, criticality: Medium</td>
+                                    <td><strong>23 assets</strong></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td><button class="btn btn-small btn-secondary">Edit</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>30</strong></td>
+                                    <td>Development Environment</td>
+                                    <td><span class="badge badge-info">Tag Match</span></td>
+                                    <td><code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">tag:Environment matches dev*</code></td>
+                                    <td>Set env: Development, criticality: Low</td>
+                                    <td><strong>31 assets</strong></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td><button class="btn btn-small btn-secondary">Edit</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>40</strong></td>
+                                    <td>Database High Criticality</td>
+                                    <td><span class="badge badge-info">Service Match</span></td>
+                                    <td><code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">service: RDS, DynamoDB</code></td>
+                                    <td>Set criticality: Critical</td>
+                                    <td><strong>20 assets</strong></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td><button class="btn btn-small btn-secondary">Edit</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>50</strong></td>
+                                    <td>IAM Critical Resources</td>
+                                    <td><span class="badge badge-info">Service Match</span></td>
+                                    <td><code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">service: IAM</code></td>
+                                    <td>Set criticality: High</td>
+                                    <td><strong>35 assets</strong></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td><button class="btn btn-small btn-secondary">Edit</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>60</strong></td>
+                                    <td>Public Bucket Detection</td>
+                                    <td><span class="badge badge-info">Exposure Check</span></td>
+                                    <td><code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">S3 + public access</code></td>
+                                    <td>Set exposure: true, classification: Restricted</td>
+                                    <td><strong>2 assets</strong></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td><button class="btn btn-small btn-secondary">Edit</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>70</strong></td>
+                                    <td>Owner from Tags</td>
+                                    <td><span class="badge badge-info">Tag Match</span></td>
+                                    <td><code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">tag:Owner exists</code></td>
+                                    <td>Set owner from tag value</td>
+                                    <td><strong>89 assets</strong></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td><button class="btn btn-small btn-secondary">Edit</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>80</strong></td>
+                                    <td>Sensitive Data Pattern</td>
+                                    <td><span class="badge badge-info">Naming Pattern</span></td>
+                                    <td><code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">name matches *-pii-*</code></td>
+                                    <td>Set classification: Confidential</td>
+                                    <td><strong>5 assets</strong></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td><button class="btn btn-small btn-secondary">Edit</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- VIEW 5: SYNC HISTORY -->
+                <div id="history" class="view">
+                    <h1 style="margin-bottom: 30px;">Sync History</h1>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Integration</th>
+                                    <th>Status</th>
+                                    <th>Trigger</th>
+                                    <th>Started</th>
+                                    <th>Duration</th>
+                                    <th>Assets</th>
+                                    <th>Errors</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Production AWS</td>
+                                    <td><span class="badge badge-success">Completed</span></td>
+                                    <td>Scheduled</td>
+                                    <td>Feb 7, 10:00</td>
+                                    <td>4m 32s</td>
+                                    <td>142 <span style="color: var(--text-secondary); font-size: 12px;">(+3/+8/-0)</span></td>
+                                    <td>0</td>
+                                    <td><button class="btn btn-small btn-secondary">View Logs</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Staging AWS</td>
+                                    <td><span class="badge badge-success">Completed</span></td>
+                                    <td>Scheduled</td>
+                                    <td>Feb 7, 10:00</td>
+                                    <td>1m 15s</td>
+                                    <td>45 <span style="color: var(--text-secondary); font-size: 12px;">(+0/+2/-0)</span></td>
+                                    <td>0</td>
+                                    <td><button class="btn btn-small btn-secondary">View Logs</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Production AWS</td>
+                                    <td><span class="badge badge-success">Completed</span></td>
+                                    <td>Manual</td>
+                                    <td>Feb 6, 15:30</td>
+                                    <td>4m 28s</td>
+                                    <td>139 <span style="color: var(--text-secondary); font-size: 12px;">(+5/+12/-1)</span></td>
+                                    <td>0</td>
+                                    <td><button class="btn btn-small btn-secondary">View Logs</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Production AWS</td>
+                                    <td><span class="badge badge-danger">Failed</span></td>
+                                    <td>Scheduled</td>
+                                    <td>Feb 6, 10:00</td>
+                                    <td>0m 05s</td>
+                                    <td>0</td>
+                                    <td>1</td>
+                                    <td><button class="btn btn-small btn-secondary">View Logs</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Staging AWS</td>
+                                    <td><span class="badge badge-success">Completed</span></td>
+                                    <td>Scheduled</td>
+                                    <td>Feb 6, 10:00</td>
+                                    <td>1m 18s</td>
+                                    <td>45 <span style="color: var(--text-secondary); font-size: 12px;">(+1/+0/-0)</span></td>
+                                    <td>0</td>
+                                    <td><button class="btn btn-small btn-secondary">View Logs</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <!-- Add Account Modal -->
+    <div id="addAccountModal" class="modal-overlay" onclick="closeAddAccountModal(event)">
+        <div class="modal wide" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Add Cloud Account</div>
+                <button class="modal-close" onclick="closeAddAccountModal()">&times;</button>
+            </div>
+            <div class="modal-content">
+                <!-- WIZARD PROGRESS -->
+                <div class="wizard-progress" id="wizardProgress">
+                    <div class="wizard-step active" id="step-1">
+                        <div class="wizard-number">1</div>
+                        <div class="wizard-label">Provider</div>
+                    </div>
+                    <div class="wizard-step" id="step-2">
+                        <div class="wizard-number">2</div>
+                        <div class="wizard-label">Configure</div>
+                    </div>
+                    <div class="wizard-step" id="step-3">
+                        <div class="wizard-number">3</div>
+                        <div class="wizard-label">Test</div>
+                    </div>
+                    <div class="wizard-step" id="step-4">
+                        <div class="wizard-number">4</div>
+                        <div class="wizard-label">Sync</div>
+                    </div>
+                    <div class="wizard-step" id="step-5">
+                        <div class="wizard-number">5</div>
+                        <div class="wizard-label">Complete</div>
+                    </div>
+                </div>
+
+                <!-- STEP 1: PROVIDER SELECTION -->
+                <div id="wizardStep1" class="wizard-step-content">
+                    <h3 style="margin-bottom: 20px;">Select Cloud Provider</h3>
+                    <div class="provider-cards">
+                        <div class="provider-card selected" onclick="selectProvider('aws')">
+                            <div class="provider-icon">☁️</div>
+                            <div class="provider-name">Amazon AWS</div>
+                            <div class="provider-desc">Connect your AWS accounts</div>
+                        </div>
+                        <div class="provider-card disabled" onclick="selectProvider('azure')">
+                            <div class="provider-icon">↗️</div>
+                            <div class="provider-name">Microsoft Azure</div>
+                            <div class="provider-desc">Coming soon</div>
+                        </div>
+                        <div class="provider-card disabled" onclick="selectProvider('gcp')">
+                            <div class="provider-icon">🔷</div>
+                            <div class="provider-name">Google Cloud</div>
+                            <div class="provider-desc">Coming soon</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 2: CONFIGURE ACCESS -->
+                <div id="wizardStep2" class="wizard-step-content" style="display: none;">
+                    <h3 style="margin-bottom: 20px;">Connect Your AWS Account</h3>
+
+                    <div class="collapsible" onclick="toggleCollapsible(this)">
+                        <div class="collapsible-header">
+                            <span>📋 Instructions</span>
+                            <span class="collapsible-icon">⌄</span>
+                        </div>
+                        <div class="collapsible-content">
+                            <ol style="margin-left: 20px; margin-top: 12px; color: var(--text-secondary); font-size: 13px;">
+                                <li>Sign in to your AWS Console</li>
+                                <li>Go to IAM → Roles → Create Role</li>
+                                <li>Select "Another AWS Account"</li>
+                                <li>Enter Account ID: <code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">111222333444</code></li>
+                                <li>Check "Require external ID"</li>
+                                <li>Enter External ID: <code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;" id="externalIdCode">550e8400-e29b-41d4-a716-446655440000</code></li>
+                                <li>Attach policy: <strong>ReadOnlyAccess</strong> (or custom policy below)</li>
+                                <li>Name the role: <code style="background: var(--light-gray); padding: 2px 4px; border-radius: 2px;">GRC-Platform-ReadOnly</code></li>
+                                <li>Copy the Role ARN and paste below</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Account Alias (Optional)</label>
+                        <input type="text" class="form-input" placeholder="e.g., Production AWS" id="accountAlias">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Role ARN (Required)</label>
+                        <input type="text" class="form-input" placeholder="arn:aws:iam::123456789012:role/GRC-Platform-ReadOnly" id="roleArn">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">External ID</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" class="form-input" value="550e8400-e29b-41d4-a716-446655440000" id="externalId" disabled style="flex: 1;">
+                            <button class="btn btn-secondary" onclick="copyToClipboard('externalId')">Copy</button>
+                        </div>
+                    </div>
+
+                    <div class="collapsible" onclick="toggleCollapsible(this)">
+                        <div class="collapsible-header">
+                            <span>🔐 Custom IAM Policy</span>
+                            <span class="collapsible-icon">⌄</span>
+                        </div>
+                        <div class="collapsible-content">
+                            <div class="code-block">
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "s3:GetBucketPolicy",
+        "s3:ListAllMyBuckets",
+        "rds:Describe*",
+        "lambda:List*",
+        "iam:GetUser",
+        "iam:ListUsers",
+        "iam:ListRoles"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+                            </div>
+                            <button class="code-copy" onclick="copyToClipboard('customPolicy')">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 3: TEST CONNECTION -->
+                <div id="wizardStep3" class="wizard-step-content" style="display: none;">
+                    <div class="text-center" style="padding: 40px 0;">
+                        <div class="spinner" style="margin: 0 auto 20px;"></div>
+                        <h3>Testing connection to AWS account...</h3>
+                        <p style="color: var(--text-secondary); margin-top: 12px;">This may take a few moments</p>
+                    </div>
+                </div>
+
+                <!-- STEP 4: CONFIGURE SYNC -->
+                <div id="wizardStep4" class="wizard-step-content" style="display: none;">
+                    <h3 style="margin-bottom: 20px;">Configure Sync Settings</h3>
+
+                    <div class="form-group">
+                        <label class="form-label">Select Regions</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 13px; color: var(--text-secondary);">4 AWS Regions</span>
+                            <div style="display: flex; gap: 12px;">
+                                <button class="btn btn-small btn-secondary" onclick="selectAllRegions(true)">Select All</button>
+                                <button class="btn btn-small btn-secondary" onclick="selectAllRegions(false)">Deselect All</button>
+                            </div>
+                        </div>
+                        <div class="checkbox-group" style="grid-template-columns: repeat(4, 1fr);">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="region-use1" checked>
+                                <label for="region-use1">us-east-1 (N. Virginia)</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="region-use2">
+                                <label for="region-use2">us-east-2 (Ohio)</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="region-use3">
+                                <label for="region-use3">us-west-1 (N. California)</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="region-use4" checked>
+                                <label for="region-use4">us-west-2 (Oregon)</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="region-eu1" checked>
+                                <label for="region-eu1">eu-west-1 (Ireland)</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="region-eu2">
+                                <label for="region-eu2">eu-west-2 (London)</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="region-eu3">
+                                <label for="region-eu3">eu-central-1 (Frankfurt)</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="region-ap1">
+                                <label for="region-ap1">ap-southeast-1 (Singapore)</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="region-ap2">
+                                <label for="region-ap2">ap-northeast-1 (Tokyo)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Select Services</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 13px; color: var(--text-secondary);">14 Services</span>
+                        </div>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item"><input type="checkbox" id="svc-ec2" checked><label for="svc-ec2">EC2</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-s3" checked><label for="svc-s3">S3</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-rds" checked><label for="svc-rds">RDS</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-lambda" checked><label for="svc-lambda">Lambda</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-iam" checked><label for="svc-iam">IAM</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-vpc" checked><label for="svc-vpc">VPC</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-eks" checked><label for="svc-eks">EKS</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-dynamo" checked><label for="svc-dynamo">DynamoDB</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-kms" checked><label for="svc-kms">KMS</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-secrets" checked><label for="svc-secrets">SecretsManager</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-cloudtrail" checked><label for="svc-cloudtrail">CloudTrail</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-elb" checked><label for="svc-elb">ELB</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-sns" checked><label for="svc-sns">SNS</label></div>
+                            <div class="checkbox-item"><input type="checkbox" id="svc-sqs" checked><label for="svc-sqs">SQS</label></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Sync Schedule</label>
+                        <div class="checkbox-group" style="grid-template-columns: 1fr;">
+                            <div class="checkbox-item">
+                                <input type="radio" name="schedule" id="schedule-hourly" value="hourly">
+                                <label for="schedule-hourly">Hourly</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="radio" name="schedule" id="schedule-daily" value="daily" checked>
+                                <label for="schedule-daily">Daily</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="radio" name="schedule" id="schedule-weekly" value="weekly">
+                                <label for="schedule-weekly">Weekly</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="radio" name="schedule" id="schedule-manual" value="manual">
+                                <label for="schedule-manual">Manual</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 5: COMPLETION -->
+                <div id="wizardStep5" class="wizard-step-content" style="display: none;">
+                    <div class="text-center" style="padding: 60px 20px;">
+                        <div style="font-size: 60px; margin-bottom: 20px;">✓</div>
+                        <h2 style="margin-bottom: 12px;">AWS Account Connected!</h2>
+                        <p style="color: var(--text-secondary); margin-bottom: 24px;">Initial sync has been started. You'll see assets appear in your inventory shortly.</p>
+                        <div style="background: var(--light-gray); padding: 20px; border-radius: 6px; margin-bottom: 24px;">
+                            <p style="font-size: 13px; color: var(--text-secondary);">Scanning <strong id="regionsCount">3 regions</strong>, <strong id="servicesCount">14 services</strong>...</p>
+                        </div>
+                        <div style="display: flex; gap: 12px; justify-content: center;">
+                            <button class="btn btn-primary" onclick="closeAddAccountModal(); switchView('inventory')">Go to Asset Inventory</button>
+                            <button class="btn btn-secondary" onclick="resetWizard()">Add Another Account</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL FOOTER -->
+            <div class="modal-footer" id="modalFooter">
+                <button class="btn btn-secondary" id="btnBack" onclick="previousStep()" style="display: none;">← Back</button>
+                <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Next →</button>
+                <button class="btn btn-primary" id="btnComplete" onclick="completeWizard()" style="display: none;">Complete Setup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Rule Modal -->
+    <div id="addRuleModal" class="modal-overlay" onclick="closeAddRuleModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title">Add Classification Rule</div>
+                <button class="modal-close" onclick="closeAddRuleModal()">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="form-group">
+                    <label class="form-label">Rule Name</label>
+                    <input type="text" class="form-input" placeholder="e.g., Production Database">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" placeholder="Describe what this rule does..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Rule Type</label>
+                    <select class="form-select">
+                        <option>Tag Match</option>
+                        <option>Service Match</option>
+                        <option>Exposure Check</option>
+                        <option>Naming Pattern</option>
+                        <option>Composite</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Conditions</label>
+                    <input type="text" class="form-input" placeholder="Define conditions...">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Priority</label>
+                    <input type="number" class="form-input" placeholder="10" value="10">
+                    <div class="form-help">Lower numbers execute first</div>
+                </div>
+
+                <div style="background: var(--light-gray); padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+                    <p style="font-size: 13px; color: var(--text-secondary);">This rule would match <strong>12 assets</strong></p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddRuleModal()">Cancel</button>
+                <button class="btn btn-primary">Create Rule</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DATA
+        const assets = [
+            { name: 'web-server-prod-01', service: 'EC2', type: 'instance', account: 'Production (123456789012)', region: 'us-east-1', environment: 'Production', owner: 'DevOps Team', criticality: 'Critical', exposed: 'Yes', lastSeen: '2h ago' },
+            { name: 'api-server-prod-02', service: 'EC2', type: 'instance', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'Backend Team', criticality: 'Critical', exposed: 'Yes', lastSeen: '2h ago' },
+            { name: 'company-assets-bucket', service: 'S3', type: 'bucket', account: 'Production', region: 'global', environment: 'Production', owner: 'Data Team', criticality: 'High', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'user-uploads-public', service: 'S3', type: 'bucket', account: 'Production', region: 'global', environment: 'Production', owner: 'Frontend Team', criticality: 'High', exposed: 'Yes', lastSeen: '2h ago' },
+            { name: 'main-database-prod', service: 'RDS', type: 'db-instance', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'DBA Team', criticality: 'Critical', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'analytics-db', service: 'RDS', type: 'db-cluster', account: 'Production', region: 'us-west-2', environment: 'Production', owner: 'Analytics', criticality: 'High', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'prod-vpc', service: 'VPC', type: 'vpc', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'Infrastructure', criticality: 'High', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'staging-vpc', service: 'VPC', type: 'vpc', account: 'Staging', region: 'us-east-1', environment: 'Staging', owner: 'Infrastructure', criticality: 'Medium', exposed: 'No', lastSeen: '5h ago' },
+            { name: 'GRC-Platform-ReadOnly', service: 'IAM', type: 'role', account: 'Production', region: 'global', environment: 'Production', owner: 'Security', criticality: 'High', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'admin-user', service: 'IAM', type: 'user', account: 'Production', region: 'global', environment: 'Production', owner: 'IT Admin', criticality: 'Critical', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'image-processor', service: 'Lambda', type: 'function', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'ML Team', criticality: 'Medium', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'data-pipeline', service: 'Lambda', type: 'function', account: 'Production', region: 'us-west-2', environment: 'Development', owner: 'Data Team', criticality: 'Low', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'prod-alb', service: 'ELB', type: 'load-balancer', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'DevOps', criticality: 'High', exposed: 'Yes', lastSeen: '2h ago' },
+            { name: 'eks-main', service: 'EKS', type: 'cluster', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'Platform Team', criticality: 'Critical', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'users-table', service: 'DynamoDB', type: 'table', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'Backend Team', criticality: 'High', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'master-encryption-key', service: 'KMS', type: 'key', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'Security', criticality: 'Critical', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'prod-web-sg', service: 'EC2', type: 'security-group', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'DevOps', criticality: 'High', exposed: 'No', lastSeen: '2h ago' },
+            { name: 'dev-test-instance', service: 'EC2', type: 'instance', account: 'Staging', region: 'us-east-1', environment: 'Development', owner: 'QA Team', criticality: 'Low', exposed: 'No', lastSeen: '5h ago' },
+            { name: 'staging-db', service: 'RDS', type: 'db-instance', account: 'Staging', region: 'us-east-1', environment: 'Staging', owner: 'DBA Team', criticality: 'Medium', exposed: 'No', lastSeen: '5h ago' },
+            { name: 'log-processor', service: 'Lambda', type: 'function', account: 'Production', region: 'us-east-1', environment: 'Production', owner: 'SRE Team', criticality: 'Medium', exposed: 'No', lastSeen: '2h ago' },
+        ];
+
+        let currentWizardStep = 1;
+        let selectedProvider = 'aws';
+        let charts = {};
+
+        // INITIALIZATION
+        document.addEventListener('DOMContentLoaded', function() {
+            populateAssetTable();
+            initializeCharts();
+            setupHeaderActions();
+        });
+
+        // VIEW SWITCHING
+        function switchView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+            // Show selected view
+            document.getElementById(viewName).classList.add('active');
+            event.target.classList.add('active');
+
+            // Update header
+            const titles = {
+                'overview': 'Cloud Overview',
+                'integrations': 'Cloud Integrations',
+                'inventory': 'Asset Inventory',
+                'rules': 'Classification Rules',
+                'history': 'Sync History'
+            };
+            document.getElementById('headerTitle').textContent = titles[viewName];
+            setupHeaderActions();
+        }
+
+        // HEADER ACTIONS
+        function setupHeaderActions() {
+            const headerActions = document.getElementById('headerActions');
+            headerActions.innerHTML = '';
+        }
+
+        // ASSET TABLE
+        function populateAssetTable() {
+            const tbody = document.getElementById('assetTableBody');
+            tbody.innerHTML = assets.map((asset, idx) => `
+                <tr>
+                    <td><input type="checkbox" class="table-checkbox"></td>
+                    <td><strong>${asset.name}</strong></td>
+                    <td>${asset.service}</td>
+                    <td><span style="color: var(--text-secondary); font-size: 13px;">${asset.type}</span></td>
+                    <td><span style="font-size: 13px;">${asset.account}</span></td>
+                    <td>${asset.region}</td>
+                    <td><span class="badge ${getEnvironmentBadgeClass(asset.environment)}">${asset.environment}</span></td>
+                    <td><span style="font-size: 13px;">${asset.owner}</span></td>
+                    <td><span class="badge ${getCriticalityBadgeClass(asset.criticality)}">${asset.criticality}</span></td>
+                    <td><span class="status-dot ${asset.exposed === 'Yes' ? 'failed' : 'active'}"></span>${asset.exposed}</td>
+                    <td><span style="color: var(--text-secondary); font-size: 13px;">${asset.lastSeen}</span></td>
+                    <td><button class="btn btn-small btn-secondary">View</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function getEnvironmentBadgeClass(env) {
+            const classes = {
+                'Production': 'badge-danger',
+                'Staging': 'badge-warning',
+                'Development': 'badge-info',
+                'Unknown': 'badge-gray'
+            };
+            return classes[env] || 'badge-gray';
+        }
+
+        function getCriticalityBadgeClass(crit) {
+            const classes = {
+                'Critical': 'badge-danger',
+                'High': 'badge-warning',
+                'Medium': 'badge-info',
+                'Low': 'badge-primary',
+                'Unclassified': 'badge-gray'
+            };
+            return classes[crit] || 'badge-gray';
+        }
+
+        // FILTERING
+        function filterTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const provider = document.getElementById('providerFilter').value;
+            const account = document.getElementById('accountFilter').value;
+            const region = document.getElementById('regionFilter').value;
+            const service = document.getElementById('serviceFilter').value;
+            const environment = document.getElementById('environmentFilter').value;
+            const criticality = document.getElementById('criticalityFilter').value;
+            const exposure = document.getElementById('exposureFilter').value;
+
+            const tbody = document.getElementById('assetTableBody');
+            let visibleCount = 0;
+
+            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const name = cells[1].textContent.toLowerCase();
+                const rowService = cells[2].textContent;
+                const rowAccount = cells[4].textContent;
+                const rowRegion = cells[5].textContent;
+                const rowEnv = cells[6].textContent;
+                const rowCrit = cells[8].textContent;
+                const rowExposed = cells[9].textContent;
+
+                let match = name.includes(search);
+                if (service) match = match && rowService.includes(service);
+                if (account) match = match && rowAccount.includes(account);
+                if (region) match = match && rowRegion.includes(region);
+                if (environment) match = match && rowEnv.includes(environment);
+                if (criticality) match = match && rowCrit.includes(criticality);
+                if (exposure === 'Exposed') match = match && rowExposed.includes('Yes');
+                if (exposure === 'Not Exposed') match = match && rowExposed.includes('No');
+
+                row.style.display = match ? '' : 'none';
+                if (match) visibleCount++;
+            });
+
+            document.getElementById('pageInfo').textContent = `Showing 1-${visibleCount} of 187 assets`;
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('providerFilter').value = '';
+            document.getElementById('accountFilter').value = '';
+            document.getElementById('regionFilter').value = '';
+            document.getElementById('serviceFilter').value = '';
+            document.getElementById('environmentFilter').value = '';
+            document.getElementById('criticalityFilter').value = '';
+            document.getElementById('exposureFilter').value = '';
+            filterTable();
+        }
+
+        function sortTable(header) {
+            // Simple sorting implementation
+            console.log('Sort by:', header.textContent);
+        }
+
+        function toggleSelectAll() {
+            const checked = document.getElementById('selectAll').checked;
+            document.querySelectorAll('.table-checkbox').forEach(cb => {
+                if (cb.id !== 'selectAll') cb.checked = checked;
+            });
+        }
+
+        // CHARTS
+        function initializeCharts() {
+            initServiceChart();
+            initEnvironmentChart();
+            initCriticalityChart();
+            initTimelineChart();
+            initGaugeChart();
+        }
+
+        function initServiceChart() {
+            const ctx = document.getElementById('serviceChart').getContext('2d');
+            charts.service = new Chart(ctx, {
+                type: 'barh',
+                data: {
+                    labels: ['EC2', 'S3', 'RDS', 'Lambda', 'IAM', 'VPC', 'EKS', 'DynamoDB', 'ELB', 'SecurityGroup'],
+                    datasets: [{
+                        label: 'Assets',
+                        data: [42, 18, 12, 28, 35, 15, 4, 8, 7, 18],
+                        backgroundColor: '#6366f1',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, max: 50 }
+                    }
+                }
+            });
+        }
+
+        function initEnvironmentChart() {
+            const ctx = document.getElementById('environmentChart').getContext('2d');
+            charts.environment = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Production', 'Staging', 'Development', 'Unknown'],
+                    datasets: [{
+                        data: [84, 37, 47, 19],
+                        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#d1d5db']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 15, font: { size: 13 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initCriticalityChart() {
+            const ctx = document.getElementById('criticalityChart').getContext('2d');
+            charts.criticality = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical', 'High', 'Medium', 'Low', 'Unclassified'],
+                    datasets: [{
+                        data: [28, 47, 65, 28, 19],
+                        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#d1d5db']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 15, font: { size: 13 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initTimelineChart() {
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            const days = Array.from({length: 30}, (_, i) => `Day ${i+1}`);
+            const data = Array.from({length: 30}, (_, i) => Math.floor(120 + (i * 2.23)));
+
+            charts.timeline = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: days,
+                    datasets: [{
+                        label: 'Assets Discovered',
+                        data: data,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 200 }
+                    }
+                }
+            });
+        }
+
+        function initGaugeChart() {
+            const ctx = document.getElementById('gaugeChart').getContext('2d');
+            charts.gauge = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [78, 22],
+                        backgroundColor: ['#6366f1', '#e5e7eb'],
+                        circumference: 180,
+                        rotation: 270
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // MODALS
+        function openAddAccountModal() {
+            document.getElementById('addAccountModal').classList.add('active');
+            resetWizard();
+        }
+
+        function closeAddAccountModal(event) {
+            if (event && event.target.id !== 'addAccountModal') return;
+            document.getElementById('addAccountModal').classList.remove('active');
+        }
+
+        function openAddRuleModal() {
+            document.getElementById('addRuleModal').classList.add('active');
+        }
+
+        function closeAddRuleModal(event) {
+            if (event && event.target.id !== 'addRuleModal') return;
+            document.getElementById('addRuleModal').classList.remove('active');
+        }
+
+        // WIZARD
+        function resetWizard() {
+            currentWizardStep = 1;
+            selectedProvider = 'aws';
+            document.querySelectorAll('.wizard-step-content').forEach(s => s.style.display = 'none');
+            document.getElementById('wizardStep1').style.display = 'block';
+            updateWizardUI();
+        }
+
+        function nextStep() {
+            if (currentWizardStep === 1) {
+                currentWizardStep = 2;
+                document.getElementById('wizardStep1').style.display = 'none';
+                document.getElementById('wizardStep2').style.display = 'block';
+            } else if (currentWizardStep === 2) {
+                currentWizardStep = 3;
+                document.getElementById('wizardStep2').style.display = 'none';
+                document.getElementById('wizardStep3').style.display = 'block';
+                simulateConnectionTest();
+            } else if (currentWizardStep === 3) {
+                currentWizardStep = 4;
+                document.getElementById('wizardStep3').style.display = 'none';
+                document.getElementById('wizardStep4').style.display = 'block';
+            } else if (currentWizardStep === 4) {
+                currentWizardStep = 5;
+                document.getElementById('wizardStep4').style.display = 'none';
+                document.getElementById('wizardStep5').style.display = 'block';
+            }
+            updateWizardUI();
+        }
+
+        function previousStep() {
+            if (currentWizardStep > 1) {
+                currentWizardStep--;
+                document.querySelectorAll('.wizard-step-content').forEach(s => s.style.display = 'none');
+                document.getElementById('wizardStep' + currentWizardStep).style.display = 'block';
+            }
+            updateWizardUI();
+        }
+
+        function updateWizardUI() {
+            // Update progress
+            for (let i = 1; i <= 5; i++) {
+                const step = document.getElementById('step-' + i);
+                step.classList.remove('active', 'completed');
+                if (i < currentWizardStep) {
+                    step.classList.add('completed');
+                } else if (i === currentWizardStep) {
+                    step.classList.add('active');
+                }
+            }
+
+            // Update buttons
+            const btnBack = document.getElementById('btnBack');
+            const btnNext = document.getElementById('btnNext');
+            const btnComplete = document.getElementById('btnComplete');
+
+            btnBack.style.display = currentWizardStep > 1 ? 'inline-flex' : 'none';
+            btnNext.style.display = currentWizardStep < 5 ? 'inline-flex' : 'none';
+            btnComplete.style.display = currentWizardStep === 4 ? 'inline-flex' : 'none';
+
+            if (currentWizardStep === 3) {
+                btnNext.textContent = 'Testing...';
+                btnNext.disabled = true;
+            } else if (currentWizardStep === 4) {
+                btnNext.textContent = 'Next →';
+                btnNext.disabled = false;
+            }
+        }
+
+        function simulateConnectionTest() {
+            setTimeout(() => {
+                document.getElementById('wizardStep3').innerHTML = `
+                    <div class="text-center" style="padding: 40px 0;">
+                        <div style="font-size: 60px; margin-bottom: 20px;">✓</div>
+                        <h3 style="color: var(--success); margin-bottom: 12px;">Connected successfully!</h3>
+                        <p style="color: var(--text-secondary);">Found AWS account 123456789012</p>
+                    </div>
+                `;
+                document.getElementById('btnNext').textContent = 'Next →';
+                document.getElementById('btnNext').disabled = false;
+            }, 2000);
+        }
+
+        function completeWizard() {
+            // Count selected regions and services
+            const regionsChecked = document.querySelectorAll('[id^="region-"]:checked').length;
+            const servicesChecked = document.querySelectorAll('[id^="svc-"]:checked').length;
+
+            document.getElementById('regionsCount').textContent = regionsChecked + ' regions';
+            document.getElementById('servicesCount').textContent = servicesChecked + ' services';
+
+            // Move to completion step
+            currentWizardStep = 5;
+            document.getElementById('wizardStep4').style.display = 'none';
+            document.getElementById('wizardStep5').style.display = 'block';
+
+            // Hide footer buttons
+            document.getElementById('modalFooter').style.display = 'none';
+        }
+
+        function selectProvider(provider) {
+            selectedProvider = provider;
+            document.querySelectorAll('.provider-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.target.closest('.provider-card').classList.add('selected');
+        }
+
+        function selectAllRegions(select) {
+            document.querySelectorAll('[id^="region-"]').forEach(cb => {
+                cb.checked = select;
+            });
+        }
+
+        // COLLAPSIBLE
+        function toggleCollapsible(element) {
+            element.classList.toggle('open');
+        }
+
+        // COPY TO CLIPBOARD
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.value || element.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

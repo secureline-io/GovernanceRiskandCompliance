@@ -1,0 +1,65 @@
+runtime: nodejs20
+env: standard
+entrypoint: node server.js
+
+env_variables:
+  NODE_ENV: production
+
+handlers:
+  - url: /.*
+    script: auto
+
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+  target_cpu_utilization: 0.7
+  target_throughput_utilization: 0.75
+  max_concurrent_requests: 100
+
+health_check:
+  enable_health_check: true
+  check_interval_sec: 30
+  timeout_sec: 10
+  unhealthy_threshold: 3
+  healthy_threshold: 2
+  path: /health
+
+session_affinity: true
+
+runtime_settings:
+  operating_system: ubuntu22
+
+vpc_settings:
+  network_name: default
+
+instance_class: F2
+
+service: grc-platform-backend
+
+includes:
+  - deploy/gcp/secret-manager.yaml
+
+inbound_services:
+  - mail_bounce
+  - xmpp_message
+  - xmpp_presence
+  - xmpp_subscribe
+  - https
+
+basic_scaling:
+  max_instances: 10
+  idle_timeout: 300s
+
+error_handlers:
+  - error_code: default_error_handlers
+    static_files: error.html
+
+skip_files:
+  - ^(?!static/).*\.html$
+  - \.py$
+  - \.pyc$
+  - ^(.*/)?\..*$
+  - ^(.*/)?.*\.json$
+  - ^(.*/)?\.*
+  - ^tests/.*
+  - ^\..*

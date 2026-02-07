@@ -13,6 +13,7 @@ const testsController = require('./testsController');
 const risksController = require('./risksController');
 const vendorsController = require('./vendorsController');
 const auditsController = require('./auditsController');
+const cloudController = require('./cloudController');
 
 module.exports = {
   authController,
@@ -25,4 +26,5 @@ module.exports = {
   risksController,
   vendorsController,
   auditsController,
+  cloudController,
 };

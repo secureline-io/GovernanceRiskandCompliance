@@ -1,0 +1,56 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grc-platform-ingress
+  namespace: grc-platform
+  labels:
+    app: grc-platform
+    component: backend
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.grc-platform.example.com
+      secretName: grc-platform-tls
+  rules:
+    - host: api.grc-platform.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grc-platform
+                port:
+                  number: 5000
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grc-platform-cert
+  namespace: grc-platform
+spec:
+  secretName: grc-platform-tls
+  duration: 2160h
+  renewBefore: 720h
+  commonName: api.grc-platform.example.com
+  dnsNames:
+    - api.grc-platform.example.com
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer

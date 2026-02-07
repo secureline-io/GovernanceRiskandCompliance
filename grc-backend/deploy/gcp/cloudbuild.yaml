@@ -1,0 +1,67 @@
+steps:
+  # Step 1: Run tests
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'test']
+
+  # Step 2: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/grc-platform:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/grc-platform:latest'
+      - '.'
+
+  # Step 3: Push to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/grc-platform:$SHORT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/grc-platform:latest'
+
+  # Step 4: Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    args:
+      - run
+      - --filename=deploy/gcp/
+      - --image=gcr.io/$PROJECT_ID/grc-platform:$SHORT_SHA
+      - --location=us-central1
+      - --cluster=grc-platform-cluster
+
+  # Step 5: Update App Engine deployment
+  - name: 'gcr.io/cloud-builders/appengine-python'
+    args:
+      - app
+      - deploy
+      - deploy/gcp/app.yaml
+      - '--quiet'
+      - '--promote'
+
+images:
+  - 'gcr.io/$PROJECT_ID/grc-platform:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/grc-platform:latest'
+
+substitutions:
+  _REGION: us-central1
+
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+onFailure:
+  - 'NOTIFY'
+
+timeout: 1800s
+
+tags:
+  - gcp-cloud
+  - grc-platform
+  - production

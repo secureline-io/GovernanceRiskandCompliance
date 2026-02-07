@@ -30,6 +30,7 @@ const testsRoutes = require('./routes/tests');
 const risksRoutes = require('./routes/risks');
 const vendorsRoutes = require('./routes/vendors');
 const auditsRoutes = require('./routes/audits');
+const cloudRoutes = require('./routes/cloud');
 
 // Validate required environment variables
 const validateEnv = () => {
@@ -165,6 +166,9 @@ const startServer = async () => {
 
     // Audits routes
     app.use(`${apiV1}/audits`, auditsRoutes);
+
+    // Cloud routes
+    app.use(`${apiV1}/cloud`, cloudRoutes);
 
     /**
      * Static Files
