@@ -31,6 +31,7 @@ import {
   CheckSquare,
   LogOut,
   ShieldCheck,
+  Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -102,6 +103,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       icon: <Shield className="w-5 h-5" />,
       items: [
         { id: 'frameworks', label: 'Frameworks', href: '/compliance', icon: <BookOpen className="w-4 h-4" /> },
+        { id: 'compliance-mapper', label: 'Compliance Mapper', href: '/compliance-mapper', icon: <Layers className="w-4 h-4" /> },
         { id: 'controls', label: 'Controls', href: '/controls', icon: <ClipboardList className="w-4 h-4" /> },
         { id: 'evidence', label: 'Evidence', href: '/evidence', icon: <FolderOpen className="w-4 h-4" /> },
         { id: 'cloud-inventory', label: 'Cloud Inventory', href: '/cloud-inventory', icon: <Cloud className="w-4 h-4" /> },
